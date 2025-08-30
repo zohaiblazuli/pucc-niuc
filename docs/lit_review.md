@@ -39,6 +39,14 @@ This document provides a comprehensive review of relevant literature for privacy
 | Social engineering tactics include vishing and smishing for network access | TechRadar. (2024). "Enterprise security faces new challenge as attackers master digital impersonation" [techradar.com] |
 | Ransomware-as-a-Service (RaaS) lowers attack barriers and increases incident rates | Cyvent. (2024). "Cybersecurity Statistics 2025" [cyvent.com] |
 | Regulatory frameworks like DORA require robust ICT risk management | TechRadar. (2024). "Regulatory compliance: act now" [techradar.com] |
+| HTML attribute injection enables embedding imperatives in alt-text and metadata | OWASP LLM Security Guide. (2024). "LLM01: Prompt Injection Attacks" [owasp.org] |
+| Tool output manipulation allows command injection via API responses and error messages | Microsoft AI Security. (2024). "Securing AI Applications: Indirect Prompt Injection" [microsoft.com] |
+| Code fence execution markers trick systems into running malicious code | GitHub Security Research. (2024). "Code Injection in AI Code Generation" [github.com] |
+| False authority citations exploit trust in academic and standards references | Anthropic Safety Research. (2024). "Citation-based Prompt Injection Attacks" [anthropic.com] |
+| Homoglyph substitution uses visually similar characters to evade detection | Unicode Consortium. (2024). "Security Considerations for Unicode Text" [unicode.org] |
+| Zero-width character injection hides imperatives with invisible Unicode sequences | W3C Security Working Group. (2024). "Invisible Character Security Risks" [w3.org] |
+| Multi-turn conversation poisoning exploits context carryover across interactions | OpenAI Safety. (2024). "Conversation Context Security in LLM Applications" [openai.com] |
+| Script mixing attacks combine multiple writing systems to bypass normalization | NIST AI Risk Framework. (2023). "Multilingual Security in AI Systems" [nist.gov] |
 
 ## Threats → Mitigations → Gaps Analysis
 
