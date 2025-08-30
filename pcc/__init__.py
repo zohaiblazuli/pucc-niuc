@@ -12,8 +12,8 @@ __email__ = "team@pcc-niuc.example"
 # Core functionality imports
 from .normalizer import normalize_text, TextNormalizer
 from .checker import verify_niuc, NIUCChecker
-from .certificate import generate_certificate, validate_certificate
-from .runtime_gate import check_operation, get_runtime_gate
+from .certificate import create_certificate, validate_certificate_json
+from .runtime_gate import process_with_block_mode, process_with_rewrite_mode, RuntimeGate
 
 # Version info
 __all__ = [
@@ -23,11 +23,12 @@ __all__ = [
     # Core functions
     "normalize_text",
     "verify_niuc", 
-    "generate_certificate",
-    "validate_certificate",
-    "check_operation",
+    "create_certificate",
+    "validate_certificate_json",
+    "process_with_block_mode",
+    "process_with_rewrite_mode",
     # Core classes
     "TextNormalizer",
     "NIUCChecker",
-    "get_runtime_gate",
+    "RuntimeGate",
 ]

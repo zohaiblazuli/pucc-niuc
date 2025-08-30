@@ -1,338 +1,342 @@
 """
-Certificate generation and validation for PCC-NIUC system.
-Implements certificate.json schema from docs/certificate-spec.md.
+Certificate generation for PCC-NIUC system.
+Implements certificate.json schema from docs/certificate-spec.md with helper functions.
 """
 
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-import json
+from typing import Dict, List, Tuple, Any, Optional
 import hashlib
-import hmac
-import base64
-import re
-from enum import Enum
-import uuid
-
-
-class ProofType(Enum):
-    """Types of cryptographic proofs."""
-    ZK_SNARK = "zk-snark"
-    ATTESTATION = "attestation"
-    SIGNATURE = "signature"
-
-
-class SecurityLevel(Enum):
-    """Security levels for certificates."""
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
+import json
+import time
+from dataclasses import dataclass
+from .checker import VerificationResult
 
 
 @dataclass
-class VerificationData:
-    """Verification data for certificate."""
-    proof_type: ProofType
-    proof_data: str
-    public_parameters: Dict[str, Any] = field(default_factory=dict)
+class CertificateData:
+    """Certificate data structure matching docs/certificate-spec.md schema."""
+    checker_version: str
+    input_sha256: str
+    output_sha256: str
+    decision: str  # "pass" | "blocked" | "rewritten"
+    violations: List[Tuple[int, int]]
 
-
-@dataclass
-class CertificateSignature:
-    """Digital signature for certificate."""
-    signer: str
-    algorithm: str
-    signature: str
-
-
-@dataclass
-class CertificateMetadata:
-    """Certificate metadata."""
-    runtime_environment: str
-    security_level: SecurityLevel
-    compliance_flags: List[str] = field(default_factory=list)
-
-
-@dataclass
-class Certificate:
-    """PCC computation certificate."""
-    version: str = "1.0"
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    certificate_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    computation_hash: str = ""
-    input_hash: str = ""
-    output_hash: str = ""
-    policy_version: str = "1.0"
-    verification_data: VerificationData = field(default_factory=lambda: VerificationData(ProofType.SIGNATURE, "", {}))
-    metadata: CertificateMetadata = field(default_factory=lambda: CertificateMetadata("pcc-niuc", SecurityLevel.MEDIUM))
-    signatures: List[CertificateSignature] = field(default_factory=list)
-    
     def to_dict(self) -> Dict[str, Any]:
-        """Convert certificate to dictionary."""
-        cert_dict = asdict(self)
-        # Convert enums to strings
-        cert_dict['verification_data']['proof_type'] = self.verification_data.proof_type.value
-        cert_dict['metadata']['security_level'] = self.metadata.security_level.value
-        return cert_dict
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "checker_version": self.checker_version,
+            "input_sha256": self.input_sha256,
+            "output_sha256": self.output_sha256,
+            "decision": self.decision,
+            "violations": self.violations
+        }
     
-    def to_json(self) -> str:
-        """Convert certificate to JSON string."""
-        return json.dumps(self.to_dict(), indent=2)
+    def to_json(self, indent: Optional[int] = None) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict(), indent=indent, separators=(',', ':'), sort_keys=True)
+
+
+class CertificateHasher:
+    """Helper functions for computing certificate hashes."""
+    
+    @staticmethod
+    def compute_input_hash(normalized_text: str) -> str:
+        """
+        Compute SHA-256 hash of normalized input text.
+        
+        Args:
+            normalized_text: Text after normalization pipeline (NFKC, casefold, etc.)
+            
+        Returns:
+            64-character lowercase hexadecimal SHA-256 hash
+        """
+        if not isinstance(normalized_text, str):
+            raise TypeError("Input must be a string")
+        return hashlib.sha256(normalized_text.encode('utf-8')).hexdigest().lower()
+    
+    @staticmethod
+    def compute_output_hash_pass(output_text: str) -> str:
+        """
+        Compute SHA-256 hash for passed computation output.
+        
+        Args:
+            output_text: Actual computation result
+            
+        Returns:
+            SHA-256 hash of the output
+        """
+        if not isinstance(output_text, str):
+            raise TypeError("Output must be a string")
+        return hashlib.sha256(output_text.encode('utf-8')).hexdigest().lower()
+    
+    @staticmethod
+    def compute_output_hash_blocked() -> str:
+        """
+        Compute SHA-256 hash for blocked computation (always empty string).
+        
+        Returns:
+            SHA-256 hash of empty string (constant)
+        """
+        return hashlib.sha256(b'').hexdigest().lower()
+        # Returns: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    
+    @staticmethod
+    def compute_output_hash_rewritten(rewritten_text: str) -> str:
+        """
+        Compute SHA-256 hash for rewritten computation output.
+        
+        Args:
+            rewritten_text: Sanitized/rewritten computation result
+            
+        Returns:
+            SHA-256 hash of the rewritten output
+        """
+        if not isinstance(rewritten_text, str):
+            raise TypeError("Rewritten text must be a string")
+        return hashlib.sha256(rewritten_text.encode('utf-8')).hexdigest().lower()
 
 
 class CertificateGenerator:
-    """Generates certificates for PCC computations."""
+    """Generates certificates from verification results."""
     
-    def __init__(self, signing_key: Optional[str] = None):
-        self.signing_key = signing_key or "default_key"
-        self.signer_id = "pcc-niuc-system"
-    
-    def generate_certificate(self,
-                           computation_code: str,
-                           input_data: str,
-                           output_data: str,
-                           policy_version: str = "1.0",
-                           security_level: SecurityLevel = SecurityLevel.MEDIUM,
-                           compliance_flags: Optional[List[str]] = None) -> Certificate:
+    def __init__(self, checker_version: str = "1.0.0"):
         """
-        Generate a certificate for a computation.
+        Initialize certificate generator.
         
         Args:
-            computation_code: The computation code
-            input_data: Input data (may be hashed for privacy)
-            output_data: Output data
-            policy_version: Version of security policy applied
-            security_level: Security level assessment
-            compliance_flags: List of compliance requirements met
+            checker_version: Version of the NIUC checker
+        """
+        self.checker_version = checker_version
+        self.hasher = CertificateHasher()
+    
+    def generate_certificate(self, verification_result: VerificationResult, 
+                           output_text: Optional[str] = None) -> CertificateData:
+        """
+        Generate certificate from verification result.
+        
+        Args:
+            verification_result: Result from NIUC checker
+            output_text: Actual output text (for pass/rewritten decisions)
             
         Returns:
-            Generated certificate
+            CertificateData object
+            
+        Preconditions:
+            - verification_result is valid VerificationResult
+            - output_text provided if decision is "pass" or "rewritten"
+            
+        Postconditions:
+            - Certificate matches docs/certificate-spec.md schema
+            - Output hash computed correctly for decision type
         """
-        # Compute hashes
-        computation_hash = self._compute_hash(computation_code)
-        input_hash = self._compute_hash(input_data)
-        output_hash = self._compute_hash(output_data)
+        # Compute output hash based on decision type
+        decision = verification_result.decision
         
-        # Create verification data
-        proof_data = self._generate_proof(computation_hash, input_hash, output_hash)
-        verification_data = VerificationData(
-            proof_type=ProofType.SIGNATURE,
-            proof_data=proof_data,
-            public_parameters={"algorithm": "HMAC-SHA256"}
+        if decision == "pass":
+            if output_text is None:
+                raise ValueError("Output text required for pass decision")
+            output_hash = self.hasher.compute_output_hash_pass(output_text)
+        elif decision == "blocked":
+            output_hash = self.hasher.compute_output_hash_blocked()
+        elif decision == "rewritten":
+            if output_text is None:
+                raise ValueError("Rewritten text required for rewritten decision")  
+            output_hash = self.hasher.compute_output_hash_rewritten(output_text)
+        else:
+            raise ValueError(f"Invalid decision: {decision}")
+        
+        return CertificateData(
+            checker_version=self.checker_version,
+            input_sha256=verification_result.input_sha256,
+            output_sha256=output_hash,
+            decision=decision,
+            violations=[[start, end] for start, end in verification_result.violations]
         )
-        
-        # Create metadata
-        metadata = CertificateMetadata(
-            runtime_environment="pcc-niuc-v1.0",
-            security_level=security_level,
-            compliance_flags=compliance_flags or []
-        )
-        
-        # Create certificate
-        certificate = Certificate(
-            computation_hash=computation_hash,
-            input_hash=input_hash,
-            output_hash=output_hash,
-            policy_version=policy_version,
-            verification_data=verification_data,
-            metadata=metadata
-        )
-        
-        # Sign certificate
-        signature = self._sign_certificate(certificate)
-        certificate.signatures.append(signature)
-        
-        return certificate
     
-    def _compute_hash(self, data: str) -> str:
-        """Compute SHA-256 hash of data."""
-        return hashlib.sha256(data.encode('utf-8')).hexdigest()
-    
-    def _generate_proof(self, comp_hash: str, input_hash: str, output_hash: str) -> str:
-        """Generate cryptographic proof."""
-        # For demonstration, use HMAC as proof
-        message = f"{comp_hash}:{input_hash}:{output_hash}"
-        signature = hmac.new(
-            self.signing_key.encode(),
-            message.encode(),
-            hashlib.sha256
-        ).digest()
-        return base64.b64encode(signature).decode()
-    
-    def _sign_certificate(self, certificate: Certificate) -> CertificateSignature:
-        """Sign the certificate."""
-        # Serialize certificate data for signing
-        cert_data = json.dumps(certificate.to_dict(), sort_keys=True)
-        signature = hmac.new(
-            self.signing_key.encode(),
-            cert_data.encode(),
-            hashlib.sha256
-        ).digest()
+    def generate_certificate_dict(self, verification_result: VerificationResult,
+                                output_text: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Generate certificate as dictionary.
         
-        return CertificateSignature(
-            signer=self.signer_id,
-            algorithm="HMAC-SHA256",
-            signature=base64.b64encode(signature).decode()
-        )
+        Args:
+            verification_result: Result from NIUC checker
+            output_text: Actual output text (for pass/rewritten decisions)
+            
+        Returns:
+            Certificate dictionary ready for JSON serialization
+        """
+        cert = self.generate_certificate(verification_result, output_text)
+        return cert.to_dict()
+    
+    def generate_certificate_json(self, verification_result: VerificationResult,
+                                output_text: Optional[str] = None,
+                                indent: Optional[int] = None) -> str:
+        """
+        Generate certificate as JSON string.
+        
+        Args:
+            verification_result: Result from NIUC checker
+            output_text: Actual output text (for pass/rewritten decisions)
+            indent: JSON indentation (None for compact)
+            
+        Returns:
+            Certificate JSON string
+        """
+        cert = self.generate_certificate(verification_result, output_text)
+        return cert.to_json(indent=indent)
 
 
 class CertificateValidator:
-    """Validates PCC certificates."""
+    """Validates certificate integrity and format."""
     
-    def __init__(self, trusted_keys: Optional[Dict[str, str]] = None):
-        self.trusted_keys = trusted_keys or {"pcc-niuc-system": "default_key"}
-        self.validation_errors: List[str] = []
-    
-    def validate_certificate(self, certificate_json: str) -> Dict[str, Any]:
+    @staticmethod
+    def validate_certificate_structure(cert_dict: Dict[str, Any]) -> bool:
         """
-        Validate a certificate.
+        Validate certificate has correct structure per schema.
         
         Args:
-            certificate_json: Certificate in JSON format
+            cert_dict: Certificate dictionary to validate
             
         Returns:
-            Validation result
+            True if structure is valid, False otherwise
         """
-        self.validation_errors = []
+        required_fields = ["checker_version", "input_sha256", "output_sha256", "decision", "violations"]
         
-        try:
-            cert_data = json.loads(certificate_json)
-        except json.JSONDecodeError as e:
-            return self._validation_failed(f"Invalid JSON: {e}")
-        
-        # Structural validation
-        if not self._validate_structure(cert_data):
-            return self._validation_failed("Structural validation failed")
-        
-        # Cryptographic validation
-        if not self._validate_signatures(cert_data):
-            return self._validation_failed("Signature validation failed")
-        
-        # Semantic validation
-        if not self._validate_semantics(cert_data):
-            return self._validation_failed("Semantic validation failed")
-        
-        return {
-            'is_valid': True,
-            'errors': [],
-            'certificate_id': cert_data.get('certificate_id'),
-            'security_level': cert_data.get('metadata', {}).get('security_level'),
-            'verified_at': datetime.now(timezone.utc).isoformat()
-        }
-    
-    def _validate_structure(self, cert_data: Dict[str, Any]) -> bool:
-        """Validate certificate structure."""
-        required_fields = [
-            'version', 'timestamp', 'certificate_id', 'computation_hash',
-            'input_hash', 'output_hash', 'policy_version', 'verification_data',
-            'metadata', 'signatures'
-        ]
-        
-        for field in required_fields:
-            if field not in cert_data:
-                self.validation_errors.append(f"Missing required field: {field}")
-                return False
-        
-        # Validate timestamp format
-        try:
-            datetime.fromisoformat(cert_data['timestamp'].replace('Z', '+00:00'))
-        except ValueError:
-            self.validation_errors.append("Invalid timestamp format")
+        # Check all required fields present
+        if not all(field in cert_dict for field in required_fields):
             return False
         
-        # Validate hashes are hex strings
-        hash_fields = ['computation_hash', 'input_hash', 'output_hash']
-        for field in hash_fields:
-            if not re.match(r'^[a-f0-9]{64}$', cert_data[field]):
-                self.validation_errors.append(f"Invalid hash format: {field}")
+        # Validate field types
+        if not isinstance(cert_dict["checker_version"], str):
+            return False
+        if not isinstance(cert_dict["input_sha256"], str):
+            return False  
+        if not isinstance(cert_dict["output_sha256"], str):
+            return False
+        if cert_dict["decision"] not in ["pass", "blocked", "rewritten"]:
+            return False
+        if not isinstance(cert_dict["violations"], list):
+            return False
+        
+        # Validate SHA-256 hash format (64 hex characters)
+        import re
+        hash_pattern = re.compile(r'^[a-f0-9]{64}$')
+        if not hash_pattern.match(cert_dict["input_sha256"]):
+            return False
+        if not hash_pattern.match(cert_dict["output_sha256"]):
+            return False
+        
+        # Validate violations format
+        for violation in cert_dict["violations"]:
+            if not isinstance(violation, list) or len(violation) != 2:
+                return False
+            if not isinstance(violation[0], int) or not isinstance(violation[1], int):
+                return False
+            if violation[0] >= violation[1] or violation[0] < 0:
                 return False
         
         return True
     
-    def _validate_signatures(self, cert_data: Dict[str, Any]) -> bool:
-        """Validate certificate signatures."""
-        if not cert_data.get('signatures'):
-            self.validation_errors.append("No signatures found")
-            return False
+    @staticmethod 
+    def validate_certificate_semantics(cert_dict: Dict[str, Any]) -> bool:
+        """
+        Validate certificate semantic consistency.
         
-        for sig in cert_data['signatures']:
-            signer = sig.get('signer')
-            if signer not in self.trusted_keys:
-                self.validation_errors.append(f"Unknown signer: {signer}")
-                return False
+        Args:
+            cert_dict: Certificate dictionary to validate
             
-            # Verify signature
-            if not self._verify_signature(cert_data, sig, self.trusted_keys[signer]):
-                self.validation_errors.append(f"Invalid signature from {signer}")
-                return False
+        Returns:
+            True if semantics are consistent, False otherwise
+        """
+        decision = cert_dict["decision"]
+        violations = cert_dict["violations"]
+        output_hash = cert_dict["output_sha256"]
         
-        return True
-    
-    def _validate_semantics(self, cert_data: Dict[str, Any]) -> bool:
-        """Validate certificate semantics."""
-        # Check certificate age
-        try:
-            cert_time = datetime.fromisoformat(cert_data['timestamp'].replace('Z', '+00:00'))
-            age = datetime.now(timezone.utc) - cert_time
-            if age.days > 30:  # 30 day expiration
-                self.validation_errors.append("Certificate expired")
-                return False
-        except Exception:
-            self.validation_errors.append("Cannot validate certificate age")
+        # Pass decisions must have no violations
+        if decision == "pass" and len(violations) > 0:
             return False
         
-        # Validate security level
-        security_level = cert_data.get('metadata', {}).get('security_level')
-        if security_level not in ['high', 'medium', 'low']:
-            self.validation_errors.append("Invalid security level")
+        # Blocked/rewritten decisions must have violations
+        if decision in ["blocked", "rewritten"] and len(violations) == 0:
+            return False
+        
+        # Blocked decisions must hash empty string
+        empty_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        if decision == "blocked" and output_hash != empty_hash:
             return False
         
         return True
     
-    def _verify_signature(self, cert_data: Dict[str, Any], signature: Dict[str, Any], key: str) -> bool:
-        """Verify a certificate signature."""
-        # Remove signatures for verification
-        cert_copy = cert_data.copy()
-        cert_copy.pop('signatures', None)
+    @classmethod
+    def validate_certificate(cls, cert_dict: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """
+        Complete certificate validation.
         
-        # Serialize for verification
-        message = json.dumps(cert_copy, sort_keys=True)
-        expected_sig = hmac.new(
-            key.encode(),
-            message.encode(),
-            hashlib.sha256
-        ).digest()
+        Args:
+            cert_dict: Certificate dictionary to validate
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not cls.validate_certificate_structure(cert_dict):
+            return False, "Invalid certificate structure"
         
-        try:
-            provided_sig = base64.b64decode(signature['signature'])
-            return hmac.compare_digest(expected_sig, provided_sig)
-        except Exception:
-            return False
+        if not cls.validate_certificate_semantics(cert_dict):
+            return False, "Invalid certificate semantics"
+        
+        return True, None
+
+
+# Convenience functions
+def create_certificate(verification_result: VerificationResult, 
+                      output_text: Optional[str] = None,
+                      checker_version: str = "1.0.0") -> Dict[str, Any]:
+    """
+    Convenience function to create certificate dictionary.
     
-    def _validation_failed(self, error: str) -> Dict[str, Any]:
-        """Return validation failure result."""
-        return {
-            'is_valid': False,
-            'errors': self.validation_errors + [error],
-            'certificate_id': None,
-            'security_level': None,
-            'verified_at': datetime.now(timezone.utc).isoformat()
-        }
+    Args:
+        verification_result: Result from NIUC checker
+        output_text: Actual output text (for pass/rewritten decisions)
+        checker_version: Version of the NIUC checker
+        
+    Returns:
+        Certificate dictionary
+    """
+    generator = CertificateGenerator(checker_version)
+    return generator.generate_certificate_dict(verification_result, output_text)
 
 
-def generate_certificate(computation_code: str, 
-                        input_data: str, 
-                        output_data: str,
-                        **kwargs) -> str:
-    """Convenience function to generate certificate JSON."""
-    generator = CertificateGenerator()
-    certificate = generator.generate_certificate(
-        computation_code, input_data, output_data, **kwargs
-    )
-    return certificate.to_json()
+def create_certificate_json(verification_result: VerificationResult,
+                           output_text: Optional[str] = None,
+                           checker_version: str = "1.0.0",
+                           indent: Optional[int] = 2) -> str:
+    """
+    Convenience function to create certificate JSON string.
+    
+    Args:
+        verification_result: Result from NIUC checker
+        output_text: Actual output text (for pass/rewritten decisions)
+        checker_version: Version of the NIUC checker  
+        indent: JSON indentation
+        
+    Returns:
+        Certificate JSON string
+    """
+    generator = CertificateGenerator(checker_version)
+    return generator.generate_certificate_json(verification_result, output_text, indent)
 
 
-def validate_certificate(certificate_json: str) -> Dict[str, Any]:
-    """Convenience function to validate certificate."""
-    validator = CertificateValidator()
-    return validator.validate_certificate(certificate_json)
+def validate_certificate_json(cert_json: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate certificate JSON string.
+    
+    Args:
+        cert_json: Certificate JSON to validate
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    try:
+        cert_dict = json.loads(cert_json)
+        return CertificateValidator.validate_certificate(cert_dict)
+    except json.JSONDecodeError as e:
+        return False, f"Invalid JSON: {e}"
