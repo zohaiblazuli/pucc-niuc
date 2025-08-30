@@ -176,3 +176,13 @@ This literature review synthesizes available public sources on AI security, prom
 - Cross-referencing between different security frameworks and standards is ongoing work
 
 **Future Updates**: This review should be updated quarterly to incorporate new research findings, published standards, and evolving threat intelligence as the field matures.
+
+## Research Gap & Goal
+
+Despite extensive research into AI safety and prompt injection detection, current literature reveals a critical absence of **small, model-agnostic enforcement runtimes** that provide per-response cryptographic certificates for computation integrity. Existing solutions, while addressing detection capabilities through input filtering and output monitoring, fail to deliver lightweight, deterministic enforcement mechanisms that can operate across diverse AI model architectures. The OWASP AI Security and Privacy Guide emphasizes the need for "defense in depth" approaches, yet current implementations rely heavily on probabilistic detection rather than proof-carrying enforcement [@owasp_ai_guide2024].
+
+Furthermore, the field lacks a **compact I²-Bench-Lite** (Indirect Injection Benchmark-Lite) that provides both adversarial test cases and their corresponding benign twins with gold-standard predicates for systematic evaluation. While NIST's AI Risk Management Framework calls for "measurable" and "repeatable" testing methodologies [@nist_ai_rmf2023], existing benchmarks are either proprietary, computationally expensive, or lack the semantic pairing necessary for precise false-positive rate assessment.
+
+**Goal**: This research aims to define **Non-Interactive Universal Computing (NIUC)** as a framework for privacy-preserving computation with verifiable certificates. We will implement a tiny checker (≤500 LOC) and runtime gate that together provide deterministic security enforcement with cryptographic attestation for every approved computation. Additionally, we will release I²-Bench-Lite as an open benchmark suite enabling reproducible evaluation of indirect prompt injection defenses.
+
+**Testable Hypotheses**: Our NIUC implementation will demonstrate: (1) Attack Success Rate (ASR) reduction to ≤10% against indirect prompt injection; (2) False Positive Rate (FPR) <2% on benign computational tasks; (3) Utility degradation (UtilityΔ) ≥ −3% compared to unprotected baselines; (4) Latency overhead ≤60ms per response; and (5) ≥10× cost reduction compared to frontier guard solutions on equivalent test suites. These metrics align with NIST's emphasis on balancing security effectiveness with operational practicality in AI system deployment.
