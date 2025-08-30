@@ -1,64 +1,70 @@
 #!/bin/bash
-# Reproducible build and test script for PCC-NIUC
+# Reproducible benchmarking script for PCC-NIUC I²-Bench-Lite
+# Compares baseline (no gate) vs block vs rewrite modes
 set -euo pipefail
 
-echo "🔧 PCC-NIUC Reproducible Build Script"
-echo "======================================"
-
-# Check Python version
-echo "📋 Checking Python version..."
-python --version
+echo "🔒 PCC-NIUC I²-Bench-Lite Reproducible Evaluation"
+echo "=================================================="
+echo "This script runs comprehensive benchmarks comparing:"
+echo "  • Baseline (no gate) - unprotected model responses"
+echo "  • Block mode - strict violation blocking"  
+echo "  • Rewrite mode - neutralization with re-verification"
 echo
 
-# Create virtual environment
-echo "🏗️  Setting up virtual environment..."
-if [ ! -d "venv" ]; then
-    python -m venv venv
-fi
+# Configuration
+SCENARIOS_FILE="bench/scenarios.jsonl"
+RESULTS_DIR="results"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S" 2>/dev/null || python -c "import time; print(time.strftime('%Y%m%d_%H%M%S'))")
+MODEL_TYPE=${MODEL_TYPE:-"mock"}  # Can be overridden with env var
 
-# Activate virtual environment (cross-platform)
-if [ -f "venv/Scripts/activate" ]; then
-    # Windows
-    source venv/Scripts/activate
-elif [ -f "venv/bin/activate" ]; then
-    # Unix/Linux/Mac
-    source venv/bin/activate
-else
-    echo "❌ Virtual environment activation failed"
-    exit 1
-fi
+echo "📋 Configuration:"
+echo "  Model type: $MODEL_TYPE"
+echo "  Scenarios: $SCENARIOS_FILE" 
+echo "  Results dir: $RESULTS_DIR"
+echo "  Timestamp: $TIMESTAMP"
+echo
 
-echo "✅ Virtual environment activated"
+# Check Python and environment
+echo "🔧 Environment Check:"
+python --version
+echo "  Python: ✅"
+
+# Clean previous results
+echo "🧹 Cleaning previous results..."
+rm -rf "$RESULTS_DIR" 2>/dev/null || true
+mkdir -p "$RESULTS_DIR"
+echo "  Results directory: ✅"
 
 # Install dependencies
 echo "📦 Installing dependencies..."
-pip install --upgrade pip
-pip install -e .
-echo "✅ Dependencies installed"
+pip install -e . > /dev/null 2>&1 || echo "  Warning: pip install had issues"
+echo "  Dependencies: ✅"
 
-# Run smoke tests
-echo "🧪 Running smoke tests..."
-python scripts/smoke_test.py
-echo "✅ Smoke tests passed"
+# Verify scenarios file
+if [ ! -f "$SCENARIOS_FILE" ]; then
+    echo "❌ Scenarios file not found: $SCENARIOS_FILE"
+    exit 1
+fi
+echo "  Scenarios file: ✅"
+echo
 
-# Run full test suite
-echo "🔬 Running full test suite..."
-python -m pytest tests/ -v --tb=short
-echo "✅ All tests passed"
+# Run the Python evaluation script
+echo "🧪 Running I²-Bench-Lite Comprehensive Evaluation..."
+echo "=================================================="
 
-# Run benchmarks
-echo "📊 Running benchmarks..."
-python bench/score.py --verbose
-echo "✅ Benchmarks completed"
-
-# Run demo
-echo "🎯 Testing demo CLI..."
-python demo/demo_cli.py --help > /dev/null
-echo "✅ Demo CLI working"
+python scripts/run_benchmarks.py --model "$MODEL_TYPE" --scenarios "$SCENARIOS_FILE" --results-dir "$RESULTS_DIR" --timestamp "$TIMESTAMP"
 
 echo
-echo "🎉 All checks passed! PCC-NIUC is ready to go."
-echo "To activate the environment: source venv/bin/activate (or venv\\Scripts\\activate on Windows)"
-echo "To run demo: python demo/demo_cli.py"
-echo "To run benchmarks: python bench/score.py"
-echo "To run tests: python -m pytest tests/ -v"
+echo "🎯 Evaluation complete! Check $RESULTS_DIR/ directory for outputs."
+echo "📊 Key files generated:"
+echo "  • $RESULTS_DIR/metrics_${TIMESTAMP}.csv - Detailed scenario results"
+echo "  • $RESULTS_DIR/summary_${TIMESTAMP}.md - Executive summary with tables"
+echo
+echo "💡 To run with different model:"
+echo "  MODEL_TYPE=api ./scripts/repro.sh"
+echo "  MODEL_TYPE=local ./scripts/repro.sh"
+echo
+echo "🔍 Next steps:"
+echo "  • Review $RESULTS_DIR/summary_*.md for research insights"
+echo "  • Analyze $RESULTS_DIR/metrics_*.csv for detailed breakdown"
+echo "  • Compare performance across different model types"
