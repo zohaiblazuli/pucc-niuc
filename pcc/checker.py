@@ -1,310 +1,237 @@
 """
-Security checker for PCC-NIUC system.
-Validates code against security policies - deterministic, no ML, ≤ 500 LOC.
+NIUC checker for PCC-NIUC system.
+Pure, deterministic verification of NIUC property: no untrusted imperatives.
+≤500 LOC for auditability.
 """
 
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
-from enum import Enum
-import ast
-import re
-
-
-class ViolationSeverity(Enum):
-    """Severity levels for security violations."""
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+from .normalizer import TextNormalizer
+from .imperative_grammar import ImperativeDetector  
+from .provenance import ProvenanceBuilder, ChannelType
+import hashlib
+import json
 
 
 @dataclass
-class SecurityViolation:
-    """Represents a security policy violation."""
-    rule_id: str
-    severity: ViolationSeverity
-    message: str
-    line_number: Optional[int] = None
-    column: Optional[int] = None
-    context: Optional[str] = None
+class VerificationResult:
+    """Result of NIUC verification with all necessary data for certificates."""
+    ok: bool
+    violations: List[Tuple[int, int]]
+    input_sha256: str
+    decision: str  # "pass" | "blocked" | "rewritten"
+    stats: Dict[str, Any]
+    raw_text: str
+    normalized_text: str
 
 
-class SecurityChecker:
-    """Deterministic security checker for code validation."""
+class NIUCChecker:
+    """Main NIUC checker - deterministic, pure, auditable."""
     
     def __init__(self):
-        self.rules = self._load_security_rules()
-        self.violations: List[SecurityViolation] = []
+        """Initialize checker components."""
+        self.normalizer = TextNormalizer()
+        self.imperative_detector = ImperativeDetector()
+        self.version = "1.0.0"
     
-    def check(self, code: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def verify(self, segments: List[Tuple[str, str, Optional[str]]]) -> VerificationResult:
         """
-        Check code against security policies.
+        Verify NIUC property: no imperatives from untrusted channels may reach execution.
         
         Args:
-            code: Source code to check
-            context: Additional context for checking
+            segments: List of (text, channel, source_id) tuples
+                     channel must be "trusted" or "untrusted"
+        
+        Returns:
+            VerificationResult with ok=True if no violations, False otherwise
+            
+        Preconditions:
+            - segments is non-empty list
+            - each segment has valid text and channel
+            
+        Postconditions:
+            - Result is deterministic for same input
+            - violations contains exact character spans
+            - All hashes computed correctly
+        """
+        if not segments:
+            raise ValueError("Segments list cannot be empty")
+        
+        # Step 1: Build provenance-tagged text
+        builder = ProvenanceBuilder()
+        combined_text, character_tags = builder.build_from_segments(segments)
+        raw_text = combined_text
+        
+        # Step 2: Normalize text
+        normalized_text, norm_stats = self.normalizer.normalize(combined_text)
+        
+        # Step 3: Detect imperatives in normalized text
+        imperative_spans = self.imperative_detector.get_violation_ranges(normalized_text)
+        
+        # Step 4: Check for NIUC violations
+        # Create new builder for normalized text (preserving provenance mapping)
+        normalized_builder = self._build_normalized_provenance(segments, normalized_text)
+        violations = normalized_builder.detect_violations(imperative_spans)
+        
+        # Step 5: Determine decision and compute hashes
+        has_violations = len(violations) > 0
+        decision = "blocked" if has_violations else "pass"
+        
+        violation_spans = [(v['imperative_start'], v['imperative_end']) for v in violations]
+        input_hash = self.normalizer.compute_hash(normalized_text)
+        
+        # Step 6: Compile statistics
+        stats = {
+            'checker_version': self.version,
+            'normalization': norm_stats,
+            'imperative_count': len(imperative_spans),
+            'violation_count': len(violations),
+            'total_characters': len(normalized_text),
+            'segments_processed': len(segments),
+        }
+        
+        return VerificationResult(
+            ok=not has_violations,
+            violations=violation_spans,
+            input_sha256=input_hash,
+            decision=decision,
+            stats=stats,
+            raw_text=raw_text,
+            normalized_text=normalized_text
+        )
+    
+    def _build_normalized_provenance(self, original_segments: List[Tuple[str, str, Optional[str]]], 
+                                   normalized_text: str) -> ProvenanceBuilder:
+        """
+        Build provenance for normalized text by mapping back to original segments.
+        
+        This is a simplified approach that assumes normalization preserves
+        the relative order and approximate positions of text segments.
+        """
+        builder = ProvenanceBuilder()
+        
+        # Simple heuristic: distribute normalized text proportionally across original segments
+        total_original_length = sum(len(seg[0]) for seg in original_segments)
+        current_position = 0
+        
+        for seg_text, channel_str, source_id in original_segments:
+            if total_original_length == 0:
+                segment_proportion = 1.0 / len(original_segments)
+            else:
+                segment_proportion = len(seg_text) / total_original_length
+            
+            segment_length = int(segment_proportion * len(normalized_text))
+            if current_position + segment_length > len(normalized_text):
+                segment_length = len(normalized_text) - current_position
+            
+            segment_normalized_text = normalized_text[current_position:current_position + segment_length]
+            builder.add_segment(segment_normalized_text, ChannelType(channel_str), source_id or "unknown")
+            
+            current_position += segment_length
+            if current_position >= len(normalized_text):
+                break
+        
+        # Handle any remaining text
+        if current_position < len(normalized_text):
+            remaining_text = normalized_text[current_position:]
+            # Assign to last segment's channel type
+            last_channel = ChannelType(original_segments[-1][1]) if original_segments else ChannelType.TRUSTED
+            builder.add_segment(remaining_text, last_channel, "remainder")
+        
+        return builder
+    
+    def create_certificate(self, result: VerificationResult) -> str:
+        """
+        Create a certificate JSON from verification result.
+        
+        Args:
+            result: VerificationResult from verify()
             
         Returns:
-            Check results with violations and security assessment
+            JSON string conforming to certificate schema
         """
-        self.violations = []
-        
-        try:
-            tree = ast.parse(code)
-        except SyntaxError as e:
-            self.violations.append(SecurityViolation(
-                rule_id="SYNTAX_001",
-                severity=ViolationSeverity.HIGH,
-                message=f"Syntax error: {e}",
-                line_number=getattr(e, 'lineno', None)
-            ))
-            return self._format_results()
-        
-        # Run all security checks
-        self._check_dangerous_imports(tree)
-        self._check_dangerous_functions(tree)
-        self._check_file_operations(tree)
-        self._check_network_operations(tree)
-        self._check_eval_operations(tree)
-        self._check_subprocess_operations(tree)
-        self._check_reflection_operations(tree)
-        self._check_global_modifications(tree)
-        self._check_complexity_limits(tree)
-        
-        return self._format_results()
-    
-    def _load_security_rules(self) -> Dict[str, Any]:
-        """Load security rules configuration."""
-        return {
-            'dangerous_imports': {
-                'os', 'sys', 'subprocess', 'socket', 'urllib', 'requests',
-                'pickle', 'marshal', 'shelve', 'dbm', 'ctypes', 'multiprocessing'
-            },
-            'dangerous_functions': {
-                'exec', 'eval', 'compile', '__import__', 'input', 'raw_input',
-                'open', 'file', 'reload', 'vars', 'globals', 'locals', 'dir'
-            },
-            'max_complexity': 20,
-            'max_depth': 10,
-            'max_function_length': 50
-        }
-    
-    def _check_dangerous_imports(self, tree: ast.AST):
-        """Check for dangerous imports."""
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    if alias.name in self.rules['dangerous_imports']:
-                        self.violations.append(SecurityViolation(
-                            rule_id="IMPORT_001",
-                            severity=ViolationSeverity.HIGH,
-                            message=f"Dangerous import: {alias.name}",
-                            line_number=node.lineno
-                        ))
-            elif isinstance(node, ast.ImportFrom):
-                if node.module and node.module in self.rules['dangerous_imports']:
-                    self.violations.append(SecurityViolation(
-                        rule_id="IMPORT_002",
-                        severity=ViolationSeverity.HIGH,
-                        message=f"Dangerous module import: {node.module}",
-                        line_number=node.lineno
-                    ))
-    
-    def _check_dangerous_functions(self, tree: ast.AST):
-        """Check for dangerous function calls."""
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func_name = self._get_call_name(node)
-                if func_name in self.rules['dangerous_functions']:
-                    self.violations.append(SecurityViolation(
-                        rule_id="FUNC_001",
-                        severity=ViolationSeverity.CRITICAL,
-                        message=f"Dangerous function call: {func_name}",
-                        line_number=node.lineno
-                    ))
-    
-    def _check_file_operations(self, tree: ast.AST):
-        """Check for file system operations."""
-        file_patterns = [r'open\s*\(', r'file\s*\(', r'\.read\s*\(', r'\.write\s*\(']
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func_name = self._get_call_name(node)
-                if func_name in ['open', 'file']:
-                    self.violations.append(SecurityViolation(
-                        rule_id="FILE_001",
-                        severity=ViolationSeverity.HIGH,
-                        message="File operation detected",
-                        line_number=node.lineno
-                    ))
-    
-    def _check_network_operations(self, tree: ast.AST):
-        """Check for network operations."""
-        network_calls = ['socket', 'urllib', 'requests', 'http', 'httplib']
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func_name = self._get_call_name(node)
-                if any(net in func_name for net in network_calls):
-                    self.violations.append(SecurityViolation(
-                        rule_id="NET_001",
-                        severity=ViolationSeverity.HIGH,
-                        message="Network operation detected",
-                        line_number=node.lineno
-                    ))
-    
-    def _check_eval_operations(self, tree: ast.AST):
-        """Check for code evaluation operations."""
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func_name = self._get_call_name(node)
-                if func_name in ['eval', 'exec', 'compile']:
-                    self.violations.append(SecurityViolation(
-                        rule_id="EVAL_001",
-                        severity=ViolationSeverity.CRITICAL,
-                        message=f"Code evaluation detected: {func_name}",
-                        line_number=node.lineno
-                    ))
-    
-    def _check_subprocess_operations(self, tree: ast.AST):
-        """Check for subprocess operations."""
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func_name = self._get_call_name(node)
-                if 'subprocess' in func_name or func_name in ['system', 'popen']:
-                    self.violations.append(SecurityViolation(
-                        rule_id="PROC_001",
-                        severity=ViolationSeverity.CRITICAL,
-                        message="Subprocess operation detected",
-                        line_number=node.lineno
-                    ))
-    
-    def _check_reflection_operations(self, tree: ast.AST):
-        """Check for reflection operations."""
-        reflection_funcs = ['getattr', 'setattr', 'hasattr', 'delattr', '__import__']
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func_name = self._get_call_name(node)
-                if func_name in reflection_funcs:
-                    self.violations.append(SecurityViolation(
-                        rule_id="REFL_001",
-                        severity=ViolationSeverity.MEDIUM,
-                        message=f"Reflection operation: {func_name}",
-                        line_number=node.lineno
-                    ))
-    
-    def _check_global_modifications(self, tree: ast.AST):
-        """Check for global variable modifications."""
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Global):
-                self.violations.append(SecurityViolation(
-                    rule_id="GLOBAL_001",
-                    severity=ViolationSeverity.MEDIUM,
-                    message="Global variable modification",
-                    line_number=node.lineno
-                ))
-    
-    def _check_complexity_limits(self, tree: ast.AST):
-        """Check code complexity limits."""
-        complexity = self._calculate_complexity(tree)
-        if complexity > self.rules['max_complexity']:
-            self.violations.append(SecurityViolation(
-                rule_id="COMPLEX_001",
-                severity=ViolationSeverity.MEDIUM,
-                message=f"Code complexity too high: {complexity}",
-            ))
-        
-        max_depth = self._calculate_max_depth(tree)
-        if max_depth > self.rules['max_depth']:
-            self.violations.append(SecurityViolation(
-                rule_id="COMPLEX_002",
-                severity=ViolationSeverity.MEDIUM,
-                message=f"Nesting depth too high: {max_depth}",
-            ))
-    
-    def _get_call_name(self, call_node: ast.Call) -> str:
-        """Extract function name from call node."""
-        if isinstance(call_node.func, ast.Name):
-            return call_node.func.id
-        elif isinstance(call_node.func, ast.Attribute):
-            return f"{self._get_attr_chain(call_node.func)}"
-        return "unknown"
-    
-    def _get_attr_chain(self, attr_node: ast.Attribute) -> str:
-        """Get full attribute chain (e.g., os.path.join)."""
-        if isinstance(attr_node.value, ast.Name):
-            return f"{attr_node.value.id}.{attr_node.attr}"
-        elif isinstance(attr_node.value, ast.Attribute):
-            return f"{self._get_attr_chain(attr_node.value)}.{attr_node.attr}"
-        return attr_node.attr
-    
-    def _calculate_complexity(self, tree: ast.AST) -> int:
-        """Calculate cyclomatic complexity."""
-        complexity = 1  # Base complexity
-        
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.If, ast.While, ast.For, ast.ListComp, 
-                               ast.DictComp, ast.SetComp, ast.GeneratorExp)):
-                complexity += 1
-            elif isinstance(node, ast.BoolOp):
-                complexity += len(node.values) - 1
-            elif isinstance(node, ast.Try):
-                complexity += len(node.handlers)
-        
-        return complexity
-    
-    def _calculate_max_depth(self, tree: ast.AST) -> int:
-        """Calculate maximum nesting depth."""
-        def get_depth(node, current_depth=0):
-            max_depth = current_depth
-            for child in ast.iter_child_nodes(node):
-                if isinstance(child, (ast.If, ast.While, ast.For, ast.With, 
-                                    ast.Try, ast.FunctionDef, ast.ClassDef)):
-                    child_depth = get_depth(child, current_depth + 1)
-                    max_depth = max(max_depth, child_depth)
-                else:
-                    child_depth = get_depth(child, current_depth)
-                    max_depth = max(max_depth, child_depth)
-            return max_depth
-        
-        return get_depth(tree)
-    
-    def _format_results(self) -> Dict[str, Any]:
-        """Format check results."""
-        severity_counts = {severity.value: 0 for severity in ViolationSeverity}
-        for violation in self.violations:
-            severity_counts[violation.severity.value] += 1
-        
-        # Determine overall security level
-        if severity_counts['critical'] > 0:
-            security_level = "rejected"
-        elif severity_counts['high'] > 0:
-            security_level = "restricted"
-        elif severity_counts['medium'] > 0:
-            security_level = "monitored"
+        # Compute output hash based on decision
+        if result.decision == "pass":
+            output_hash = self.normalizer.compute_hash(result.normalized_text)
         else:
-            security_level = "approved"
+            # For blocked decisions, hash empty string
+            output_hash = hashlib.sha256(b'').hexdigest().lower()
         
-        return {
-            'security_level': security_level,
-            'total_violations': len(self.violations),
-            'severity_counts': severity_counts,
-            'violations': [
-                {
-                    'rule_id': v.rule_id,
-                    'severity': v.severity.value,
-                    'message': v.message,
-                    'line_number': v.line_number,
-                    'column': v.column,
-                    'context': v.context
-                }
-                for v in self.violations
-            ]
+        certificate = {
+            "checker_version": self.version,
+            "input_sha256": result.input_sha256,
+            "output_sha256": output_hash,
+            "decision": result.decision,
+            "violations": result.violations
         }
+        
+        return json.dumps(certificate, separators=(',', ':'), sort_keys=True)
+    
+    def quick_check(self, text: str, is_trusted: bool = True) -> bool:
+        """
+        Quick check for single text segment (convenience method).
+        
+        Args:
+            text: Text to check
+            is_trusted: Whether text comes from trusted source
+            
+        Returns:
+            True if no violations, False otherwise
+        """
+        channel = "trusted" if is_trusted else "untrusted"
+        segments = [(text, channel, "quick_check")]
+        result = self.verify(segments)
+        return result.ok
 
 
-def check_code_security(code: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Convenience function to check code security."""
-    checker = SecurityChecker()
-    return checker.check(code, context)
+# Pure function interface (no classes needed)
+def verify_niuc(segments: List[Tuple[str, str, Optional[str]]]) -> Dict[str, Any]:
+    """
+    Pure function to verify NIUC property without creating checker instance.
+    
+    Args:
+        segments: List of (text, channel, source_id) tuples
+        
+    Returns:
+        Dictionary with verification results
+    """
+    checker = NIUCChecker()
+    result = checker.verify(segments)
+    
+    return {
+        'ok': result.ok,
+        'violations': result.violations,
+        'decision': result.decision,
+        'input_sha256': result.input_sha256,
+        'stats': result.stats
+    }
+
+
+def create_certificate_json(segments: List[Tuple[str, str, Optional[str]]]) -> str:
+    """
+    Create complete certificate for given segments.
+    
+    Args:
+        segments: List of (text, channel, source_id) tuples
+        
+    Returns:
+        Certificate JSON string
+    """
+    checker = NIUCChecker()
+    result = checker.verify(segments)
+    return checker.create_certificate(result)
+
+
+# Example usage patterns for testing
+def check_simple_text(text: str, trusted: bool = False) -> bool:
+    """Simple check for single text - most common usage."""
+    return verify_niuc([(text, "trusted" if trusted else "untrusted", "simple")])['ok']
+
+
+def check_mixed_content(trusted_text: str, untrusted_text: str) -> Dict[str, Any]:
+    """Check mixed trusted/untrusted content - common RAG scenario."""
+    segments = [
+        (trusted_text, "trusted", "system"),
+        (untrusted_text, "untrusted", "rag")
+    ]
+    return verify_niuc(segments)

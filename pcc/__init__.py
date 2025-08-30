@@ -10,8 +10,8 @@ __author__ = "PCC-NIUC Team"
 __email__ = "team@pcc-niuc.example"
 
 # Core functionality imports
-from .normalizer import normalize_code, CodeNormalizer
-from .checker import check_code_security, SecurityChecker
+from .normalizer import normalize_text, TextNormalizer
+from .checker import verify_niuc, NIUCChecker
 from .certificate import generate_certificate, validate_certificate
 from .runtime_gate import check_operation, get_runtime_gate
 
@@ -21,13 +21,13 @@ __all__ = [
     "__author__", 
     "__email__",
     # Core functions
-    "normalize_code",
-    "check_code_security", 
+    "normalize_text",
+    "verify_niuc", 
     "generate_certificate",
     "validate_certificate",
     "check_operation",
     # Core classes
-    "CodeNormalizer",
-    "SecurityChecker",
+    "TextNormalizer",
+    "NIUCChecker",
     "get_runtime_gate",
 ]

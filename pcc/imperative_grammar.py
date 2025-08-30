@@ -1,244 +1,225 @@
 """
-Imperative grammar definitions for PCC-NIUC system.
-Defines the computational constructs allowed in secure computations.
+Imperative grammar detection for PCC-NIUC system.
+Identifies command patterns in normalized text and returns character spans.
 """
 
-from typing import Dict, List, Set, Any, Optional
-from enum import Enum
-import ast
+from typing import List, Tuple, Pattern, Dict, Set
+import re
+from dataclasses import dataclass
 
 
-class OperationType(Enum):
-    """Allowed operation types in secure computations."""
-    ARITHMETIC = "arithmetic"
-    COMPARISON = "comparison" 
-    LOGICAL = "logical"
-    ASSIGNMENT = "assignment"
-    CONTROL_FLOW = "control_flow"
-    FUNCTION_CALL = "function_call"
-    DATA_ACCESS = "data_access"
+@dataclass
+class ImperativeSpan:
+    """Represents a detected imperative with its location and type."""
+    start: int
+    end: int
+    text: str
+    imperative_type: str
+    confidence: float = 1.0
 
 
-class SecurityLevel(Enum):
-    """Security levels for operations."""
-    PUBLIC = "public"
-    PRIVATE = "private"
-    RESTRICTED = "restricted"
-
-
-class Grammar:
-    """Defines the imperative grammar for secure computations."""
+class ImperativeDetector:
+    """Detects imperative commands in text using pattern matching."""
     
     def __init__(self):
-        self.allowed_operations = self._init_allowed_operations()
-        self.restricted_functions = self._init_restricted_functions()
-        self.security_annotations = {}
+        """Initialize detector with compiled regex patterns."""
+        self._compile_patterns()
     
-    def _init_allowed_operations(self) -> Dict[OperationType, List[str]]:
-        """Initialize allowed operations by type."""
-        return {
-            OperationType.ARITHMETIC: [
-                'Add', 'Sub', 'Mult', 'Div', 'FloorDiv', 'Mod', 'Pow'
-            ],
-            OperationType.COMPARISON: [
-                'Eq', 'NotEq', 'Lt', 'LtE', 'Gt', 'GtE', 'Is', 'IsNot', 'In', 'NotIn'
-            ],
-            OperationType.LOGICAL: [
-                'And', 'Or', 'Not'
-            ],
-            OperationType.ASSIGNMENT: [
-                'Assign', 'AugAssign'
-            ],
-            OperationType.CONTROL_FLOW: [
-                'If', 'For', 'While', 'Break', 'Continue', 'Return'
-            ],
-            OperationType.FUNCTION_CALL: [
-                'Call'
-            ],
-            OperationType.DATA_ACCESS: [
-                'Subscript', 'Attribute', 'Name'
-            ]
+    def _compile_patterns(self) -> None:
+        """Compile all regex patterns for imperative detection."""
+        
+        # Direct imperative verbs (most common attack vectors)
+        self.direct_verbs = {
+            'execute', 'run', 'eval', 'exec', 'call', 'invoke', 'launch',
+            'delete', 'remove', 'rm', 'unlink', 'destroy', 'erase',
+            'create', 'write', 'save', 'generate', 'make', 'build',
+            'send', 'post', 'submit', 'upload', 'download', 'fetch',
+            'open', 'read', 'load', 'import', 'include', 'require',
+            'install', 'update', 'upgrade', 'patch', 'modify', 'change',
+            'bypass', 'override', 'ignore', 'skip', 'disable', 'enable',
         }
+        
+        # Modal auxiliary patterns for commands
+        self.modal_patterns = [
+            r'\bmust\s+(\w+)',
+            r'\bshould\s+(\w+)', 
+            r'\bneed\s+to\s+(\w+)',
+            r'\bhave\s+to\s+(\w+)',
+            r'\bwill\s+(\w+)',
+            r'\bshall\s+(\w+)',
+        ]
+        
+        # Request frame patterns (polite imperatives)
+        self.request_patterns = [
+            r'\bplease\s+(\w+)',
+            r'\bcould\s+you\s+(\w+)',
+            r'\bwould\s+you\s+(\w+)',
+            r'\bcan\s+you\s+(\w+)',
+            r'\bi\s+need\s+you\s+to\s+(\w+)',
+            r'\byou\s+must\s+(\w+)',
+            r'\byou\s+should\s+(\w+)',
+            r'\bi\s+want\s+you\s+to\s+(\w+)',
+            r'\bi\s+require\s+you\s+to\s+(\w+)',
+        ]
+        
+        # Code fence patterns with execution indicators
+        self.code_fence_patterns = [
+            r'```[\w-]*(?:run|exec|execute|auto|immediate)[\w-]*\n',
+            r'```[\w-]*\n.*?(?:#\s*(?:run|execute|auto))',
+            r'<code[^>]*(?:execute|run|auto)[^>]*>',
+            r'\[code\s+(?:execute|run|auto)\]',
+        ]
+        
+        # Tool call patterns
+        self.tool_call_patterns = [
+            r'@\w+\s*\(',  # @function(
+            r'#(?:execute|run|call)\s+\w+',  # #execute function
+            r'\[(?:RUN|EXEC|CALL)\]',  # [RUN] marker
+            r'::(\w+)\s*\(',  # ::function(
+        ]
+        
+        # Conditional imperatives  
+        self.conditional_patterns = [
+            r'\bif\s+.*?\bthen\s+(\w+)',
+            r'\bwhen\s+.*?\s+(\w+)',
+            r'\bunless\s+.*?\s+(\w+)',
+        ]
+        
+        # Compile all patterns
+        self.compiled_patterns: Dict[str, List[Pattern]] = {}
+        self._compile_pattern_group('direct_verbs', [rf'\b({"|".join(self.direct_verbs)})\b'])
+        self._compile_pattern_group('modals', self.modal_patterns)
+        self._compile_pattern_group('requests', self.request_patterns)
+        self._compile_pattern_group('code_fences', self.code_fence_patterns)
+        self._compile_pattern_group('tool_calls', self.tool_call_patterns)
+        self._compile_pattern_group('conditionals', self.conditional_patterns)
     
-    def _init_restricted_functions(self) -> Dict[str, SecurityLevel]:
-        """Initialize restricted function list with security levels."""
-        return {
-            # System functions - restricted
-            'exec': SecurityLevel.RESTRICTED,
-            'eval': SecurityLevel.RESTRICTED,
-            'compile': SecurityLevel.RESTRICTED,
-            '__import__': SecurityLevel.RESTRICTED,
-            'open': SecurityLevel.RESTRICTED,
-            'input': SecurityLevel.RESTRICTED,
-            'print': SecurityLevel.RESTRICTED,
-            
-            # Network/IO functions - restricted
-            'socket': SecurityLevel.RESTRICTED,
-            'urllib': SecurityLevel.RESTRICTED,
-            'requests': SecurityLevel.RESTRICTED,
-            
-            # File system - restricted
-            'os': SecurityLevel.RESTRICTED,
-            'sys': SecurityLevel.RESTRICTED,
-            'subprocess': SecurityLevel.RESTRICTED,
-            
-            # Allowed builtin functions - public
-            'len': SecurityLevel.PUBLIC,
-            'range': SecurityLevel.PUBLIC,
-            'enumerate': SecurityLevel.PUBLIC,
-            'zip': SecurityLevel.PUBLIC,
-            'map': SecurityLevel.PUBLIC,
-            'filter': SecurityLevel.PUBLIC,
-            'sum': SecurityLevel.PUBLIC,
-            'min': SecurityLevel.PUBLIC,
-            'max': SecurityLevel.PUBLIC,
-            'abs': SecurityLevel.PUBLIC,
-            'round': SecurityLevel.PUBLIC,
-            
-            # Math functions - public
-            'math.sqrt': SecurityLevel.PUBLIC,
-            'math.pow': SecurityLevel.PUBLIC,
-            'math.log': SecurityLevel.PUBLIC,
-            'math.exp': SecurityLevel.PUBLIC,
-            'math.sin': SecurityLevel.PUBLIC,
-            'math.cos': SecurityLevel.PUBLIC,
-        }
+    def _compile_pattern_group(self, group_name: str, patterns: List[str]) -> None:
+        """Compile a group of regex patterns with case-insensitive matching."""
+        self.compiled_patterns[group_name] = []
+        for pattern in patterns:
+            try:
+                compiled = re.compile(pattern, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+                self.compiled_patterns[group_name].append(compiled)
+            except re.error as e:
+                # Skip invalid patterns but log for debugging
+                print(f"Warning: Invalid regex pattern '{pattern}': {e}")
     
-    def validate_ast(self, tree: ast.AST) -> Dict[str, Any]:
+    def detect_imperatives(self, text: str) -> List[ImperativeSpan]:
         """
-        Validate AST against grammar rules.
+        Detect all imperative spans in the given text.
         
         Args:
-            tree: AST to validate
+            text: Normalized text to analyze
             
         Returns:
-            Validation result with violations and security level
+            List of ImperativeSpan objects with positions and types
+            
+        Preconditions:
+            - text should be normalized (NFKC, casefold, etc.)
+            - text length reasonable for regex processing
+            
+        Postconditions:
+            - Results are sorted by start position
+            - No overlapping spans (first match wins)
+            - All spans have valid start < end positions
         """
-        validator = GrammarValidator(self)
-        return validator.validate(tree)
-    
-    def get_operation_security_level(self, op_name: str) -> SecurityLevel:
-        """Get security level for an operation."""
-        if op_name in self.restricted_functions:
-            return self.restricted_functions[op_name]
-        return SecurityLevel.PUBLIC
-    
-    def is_operation_allowed(self, op_type: OperationType, op_name: str) -> bool:
-        """Check if operation is allowed."""
-        if op_type in self.allowed_operations:
-            return op_name in self.allowed_operations[op_type]
-        return False
-
-
-class GrammarValidator(ast.NodeVisitor):
-    """Validates AST nodes against grammar rules."""
-    
-    def __init__(self, grammar: Grammar):
-        self.grammar = grammar
-        self.violations = []
-        self.security_level = SecurityLevel.PUBLIC
-        self.function_calls = []
-        self.imports = []
-    
-    def validate(self, tree: ast.AST) -> Dict[str, Any]:
-        """Validate tree and return results."""
-        self.violations = []
-        self.security_level = SecurityLevel.PUBLIC
-        self.function_calls = []
-        self.imports = []
+        if not isinstance(text, str):
+            raise TypeError("Input must be a string")
         
-        self.visit(tree)
+        all_spans = []
+        
+        # Process each pattern group
+        for group_name, patterns in self.compiled_patterns.items():
+            for pattern in patterns:
+                for match in pattern.finditer(text):
+                    span = ImperativeSpan(
+                        start=match.start(),
+                        end=match.end(),
+                        text=match.group(0),
+                        imperative_type=group_name
+                    )
+                    all_spans.append(span)
+        
+        # Remove overlapping spans (first match wins) and sort by position
+        non_overlapping = self._remove_overlaps(all_spans)
+        return sorted(non_overlapping, key=lambda x: x.start)
+    
+    def _remove_overlaps(self, spans: List[ImperativeSpan]) -> List[ImperativeSpan]:
+        """
+        Remove overlapping imperative spans, keeping the first detected.
+        
+        Args:
+            spans: List of potentially overlapping spans
+            
+        Returns:
+            List of non-overlapping spans
+        """
+        if not spans:
+            return []
+        
+        # Sort by start position
+        sorted_spans = sorted(spans, key=lambda x: x.start)
+        result = [sorted_spans[0]]
+        
+        for span in sorted_spans[1:]:
+            # Check if this span overlaps with the last added span
+            last_span = result[-1]
+            if span.start >= last_span.end:
+                result.append(span)
+            # If overlapping, skip (first match wins)
+        
+        return result
+    
+    def get_violation_ranges(self, text: str) -> List[Tuple[int, int]]:
+        """
+        Get simple (start, end) tuples for all imperative violations.
+        
+        Args:
+            text: Normalized text to analyze
+            
+        Returns:
+            List of (start, end) tuples suitable for certificate violations field
+        """
+        spans = self.detect_imperatives(text)
+        return [(span.start, span.end) for span in spans]
+    
+    def analyze_text(self, text: str) -> Dict[str, any]:
+        """
+        Comprehensive analysis of text for imperatives.
+        
+        Args:
+            text: Normalized text to analyze
+            
+        Returns:
+            Dictionary with analysis results including counts by type
+        """
+        spans = self.detect_imperatives(text)
+        
+        # Count by imperative type
+        type_counts = {}
+        for span in spans:
+            type_counts[span.imperative_type] = type_counts.get(span.imperative_type, 0) + 1
         
         return {
-            'is_valid': len(self.violations) == 0,
-            'violations': self.violations,
-            'security_level': self.security_level.value,
-            'function_calls': self.function_calls,
-            'imports': self.imports
+            'total_imperatives': len(spans),
+            'imperative_spans': [(s.start, s.end) for s in spans],
+            'imperative_types': type_counts,
+            'has_violations': len(spans) > 0,
+            'text_length': len(text),
         }
-    
-    def visit_Call(self, node):
-        """Validate function calls."""
-        func_name = self._get_function_name(node.func)
-        self.function_calls.append(func_name)
-        
-        # Check if function is restricted
-        security_level = self.grammar.get_operation_security_level(func_name)
-        if security_level == SecurityLevel.RESTRICTED:
-            self.violations.append(f"Restricted function call: {func_name}")
-        
-        # Update overall security level
-        if security_level.value > self.security_level.value:
-            self.security_level = security_level
-        
-        self.generic_visit(node)
-    
-    def visit_Import(self, node):
-        """Validate imports."""
-        for alias in node.names:
-            self.imports.append(alias.name)
-            if alias.name in self.grammar.restricted_functions:
-                security_level = self.grammar.restricted_functions[alias.name]
-                if security_level == SecurityLevel.RESTRICTED:
-                    self.violations.append(f"Restricted import: {alias.name}")
-    
-    def visit_ImportFrom(self, node):
-        """Validate from imports."""
-        module = node.module or ''
-        for alias in node.names:
-            full_name = f"{module}.{alias.name}" if module else alias.name
-            self.imports.append(full_name)
-            if full_name in self.grammar.restricted_functions:
-                security_level = self.grammar.restricted_functions[full_name]
-                if security_level == SecurityLevel.RESTRICTED:
-                    self.violations.append(f"Restricted import: {full_name}")
-    
-    def visit_BinOp(self, node):
-        """Validate binary operations."""
-        op_name = type(node.op).__name__
-        if not self.grammar.is_operation_allowed(OperationType.ARITHMETIC, op_name):
-            self.violations.append(f"Disallowed arithmetic operation: {op_name}")
-        self.generic_visit(node)
-    
-    def visit_Compare(self, node):
-        """Validate comparison operations."""
-        for op in node.ops:
-            op_name = type(op).__name__
-            if not self.grammar.is_operation_allowed(OperationType.COMPARISON, op_name):
-                self.violations.append(f"Disallowed comparison operation: {op_name}")
-        self.generic_visit(node)
-    
-    def visit_BoolOp(self, node):
-        """Validate boolean operations."""
-        op_name = type(node.op).__name__
-        if not self.grammar.is_operation_allowed(OperationType.LOGICAL, op_name):
-            self.violations.append(f"Disallowed logical operation: {op_name}")
-        self.generic_visit(node)
-    
-    def _get_function_name(self, func_node) -> str:
-        """Extract function name from call node."""
-        if isinstance(func_node, ast.Name):
-            return func_node.id
-        elif isinstance(func_node, ast.Attribute):
-            # Handle module.function calls
-            if isinstance(func_node.value, ast.Name):
-                return f"{func_node.value.id}.{func_node.attr}"
-            return func_node.attr
-        else:
-            return "unknown"
 
 
-def validate_grammar(code: str) -> Dict[str, Any]:
-    """Convenience function to validate code grammar."""
-    try:
-        tree = ast.parse(code)
-        grammar = Grammar()
-        return grammar.validate_ast(tree)
-    except SyntaxError as e:
-        return {
-            'is_valid': False,
-            'violations': [f"Syntax error: {e}"],
-            'security_level': 'unknown',
-            'function_calls': [],
-            'imports': []
-        }
+# Convenience function for direct use
+def detect_imperatives(text: str) -> List[Tuple[int, int]]:
+    """
+    Convenience function to detect imperatives without creating detector instance.
+    
+    Args:
+        text: Normalized text to analyze
+        
+    Returns:
+        List of (start, end) tuples for detected imperatives
+    """
+    detector = ImperativeDetector()
+    return detector.get_violation_ranges(text)
