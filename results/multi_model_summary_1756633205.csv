@@ -1,0 +1,6 @@
+model,scenarios_run,total_tokens,total_cost,avg_latency_ms,api_errors,asr_block,fpr_block,asr_rewrite,fpr_rewrite
+gpt-4,60,7668,0.23004000000000005,3448.0582533332376,0,15.0,0.0,100.0,0.0
+claude-3-haiku,60,9325,0.0023312500000000004,1372.2724183332502,0,15.0,0.0,100.0,0.0
+gemini-2.5-flash,0,0,0.0,0.0,60,0.0,0.0,0.0,0.0
+qwen/qwen3-8b,60,14101,0.0028202,4579.674798333267,0,15.0,0.0,100.0,0.0
+deepseek/deepseek-chat-v3.1,60,20440,0.004088,15102.830501666689,0,15.0,0.0,100.0,0.0

@@ -54,7 +54,7 @@ cat results/summary_demo.md  # Executive summary
 cat results/metrics_demo.csv # Detailed data
 ```
 
-**What it tests**: 48 scenarios across 6 attack categories (HTML injection, tool manipulation, code fence, citation abuse, multilingual evasion, conversation poisoning). Each attack has a benign twin for false-positive measurement.
+**What it tests**: 500 scenarios across 17 attack categories (HTML injection, tool manipulation, code fence, citation abuse, multilingual evasion, conversation poisoning, steganographic encoding, template injection, social engineering, privilege escalation, and more). Each attack has a benign twin for false-positive measurement.
 
 ## 📜 Certificate Example
 

@@ -1,4 +1,4 @@
-# PCC-NIUC I²-Bench-Lite Evaluation Results
+# PCC-NIUC Hydra-Bench-500 Evaluation Results
 
 **Evaluation Date**: 2025-09-01 19:05:01
 **Model Type**: mock

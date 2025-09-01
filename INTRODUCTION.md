@@ -20,7 +20,7 @@ The NIUC framework enforces a fundamental security property through **character-
 
 Our implementation consists of three architectural components working in concert. A **deterministic checker** (224 lines of code) performs Unicode normalization, imperative detection, and NIUC property verification without relying on machine learning or external dependencies, ensuring auditability and reproducible behavior. A **runtime gate** provides two enforcement modes: strict blocking for high-security environments and certified-rewrite for utility preservation, where untrusted imperatives are neutralized through annotation and the resulting text is re-verified for safety. Finally, **cryptographic certificates** provide mathematical attestation that approved computations satisfy the NIUC property, enabling trust composition across system boundaries.
 
-To enable systematic evaluation and comparison with existing approaches, we develop **Hydra-Bench-500** (Indirect Injection Benchmark-Lite), comprising 48 scenarios across six attack categories: HTML attribute injection, tool output manipulation, code fence execution markers, citation authority abuse, multilingual evasion, and conversation context poisoning. Each attack scenario includes semantically equivalent benign twins, enabling precise measurement of false positive rates while maintaining comprehensive attack coverage.
+To enable systematic evaluation and comparison with existing approaches, we developed **Hydra-Bench-500**, a comprehensive indirect prompt injection benchmark comprising 500 scenarios across 17 attack categories: HTML attribute injection, tool output manipulation, code fence execution markers, citation authority abuse, multilingual evasion, conversation context poisoning, steganographic encoding, template injection, social engineering, privilege escalation, path traversal attacks, command chaining, nested code confusion, advanced Unicode evasion, advanced citation abuse, context poisoning, and time-based attacks. Each attack scenario includes systematically paired benign twins, enabling precise measurement of false positive rates while maintaining comprehensive attack coverage.
 
 ## Contributions
 
@@ -30,7 +30,7 @@ Our work makes the following contributions to LLM security and privacy-preservin
 
 • **Production-Ready Implementation**: We develop a complete system comprising a deterministic ≤500 LOC checker, dual-mode runtime gate with certified-rewrite capability, and model-agnostic architecture supporting both local and API model deployments, achieving 0.0% false positive rate with 0.2ms processing latency.
 
-• **Hydra-Bench-500 Benchmark**: We release the first standardized benchmark for indirect prompt injection evaluation, featuring 48 scenarios with attack/benign twin pairs across six categories and automated evaluation harness, enabling reproducible comparative studies and establishing performance baselines for future research.
+• **Hydra-Bench-500 Benchmark**: We release the most comprehensive standardized benchmark for indirect prompt injection evaluation, featuring 500 scenarios with attack/benign twin pairs across 17 categories and automated evaluation harness, providing unprecedented statistical power for robust comparative studies and establishing performance baselines for future research.
 
 ---
 

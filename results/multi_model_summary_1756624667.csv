@@ -1,0 +1,2 @@
+model,scenarios_run,total_tokens,total_cost,avg_latency_ms,api_errors,asr_block,fpr_block,asr_rewrite,fpr_rewrite
+gpt-4,60,8277,0.24831,3701.297913333337,0,15.0,0.0,100.0,0.0

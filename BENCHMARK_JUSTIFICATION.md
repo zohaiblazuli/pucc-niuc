@@ -1,8 +1,8 @@
-# I²-Bench-Lite Dataset Design Justification
+# Hydra-Bench-500 Dataset Design Justification
 
 ## Executive Summary
 
-The I²-Bench-Lite benchmark dataset was designed using systematic threat modeling principles to evaluate NIUC systems against realistic indirect prompt injection attacks while maintaining rigorous false positive testing. The dataset contains **52 carefully constructed scenarios** (28 attacks, 24 benign) across 9 attack categories based on established security research and real-world attack vectors.
+The Hydra-Bench-500 benchmark dataset was designed using systematic threat modeling principles to evaluate NIUC systems against realistic indirect prompt injection attacks while maintaining rigorous false positive testing. The dataset contains **500 carefully constructed scenarios** (304 attacks, 196 benign) across 17 attack categories based on established security research and real-world attack vectors, representing a 10-fold expansion from the foundational I²-Bench-Lite dataset.
 
 ## 1. Design Principles and Methodology
 
@@ -208,9 +208,9 @@ The benchmark enables systematic feature ablation:
 
 ## 8. Conclusion
 
-The I²-Bench-Lite dataset provides a rigorous, threat-model-driven evaluation framework for NIUC systems. The construction methodology balances attack sophistication with evaluation practicality, ensuring both security effectiveness measurement and false positive prevention. The systematic design enables reproducible research while maintaining alignment with real-world deployment challenges.
+The Hydra-Bench-500 dataset provides a rigorous, threat-model-driven evaluation framework for NIUC systems with unprecedented scale and sophistication. The construction methodology balances attack sophistication with evaluation practicality, ensuring both security effectiveness measurement and false positive prevention across 17 comprehensive attack categories. The systematic design enables reproducible research while maintaining alignment with real-world deployment challenges.
 
 The benchmark's strength lies in its **systematic coverage** of documented attack vectors, **realistic deployment scenarios**, and **rigorous benign twin methodology** for false positive prevention. This foundation supports both current system evaluation and future research advancement in indirect prompt injection defense.
 
 ---
-*Dataset Version: 1.0 | Scenarios: 52 | Attack Categories: 9 | Documentation Date: 2025-09-01*
+*Dataset Version: 2.0 | Scenarios: 500 | Attack Categories: 17 | Documentation Date: 2025-09-01*

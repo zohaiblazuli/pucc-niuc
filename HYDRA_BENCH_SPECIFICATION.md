@@ -139,7 +139,7 @@ attack_patterns = {
 ```
 
 ### 3. Regression Testing
-- All I²-Bench-Lite scenarios maintained in expansion
+- All foundational scenarios maintained through systematic expansion
 - Backward compatibility with existing evaluation tools
 - Preserved attack effectiveness measurements
 
@@ -227,7 +227,7 @@ Statistical Power: ✅ High (10x expansion)
 
 Hydra-Bench establishes a new standard for indirect prompt injection evaluation, providing comprehensive coverage of documented attack vectors while maintaining rigorous quality standards. The dataset's systematic construction methodology ensures reproducible research while its scale enables statistically robust evaluation of defense systems.
 
-The 7x expansion from I²-Bench-Lite demonstrates the maturity of NIUC defense capabilities while revealing new challenges in advanced Unicode evasion and template injection attacks. This foundation supports both current system optimization and future research advancement in LLM security.
+The 10x expansion from the foundational dataset demonstrates the maturity of NIUC defense capabilities while revealing new challenges in advanced Unicode evasion, template injection, and steganographic encoding attacks. This foundation supports both current system optimization and future research advancement in LLM security.
 
 ---
 *Dataset Documentation Version 1.0 | Generated: 2025-01-09 | Total Scenarios: 365*

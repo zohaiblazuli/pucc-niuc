@@ -1,0 +1,79 @@
+% !TeX program = xelatex
+% PCC-NIUC Overleaf-ready manuscript (Simple bibliography version)
+\documentclass[11pt]{article}
+
+% Engine-conditional font setup
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+\else
+  \usepackage{fontspec}
+  % Use a Unicode font with broad coverage
+  \setmainfont{Noto Serif}
+\fi
+
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{xcolor}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+
+% Hyperref setup
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdfauthor={PCC-NIUC Team},
+  pdftitle={Privacy-Preserving Computing with Non-Interactive Universal Computation}
+}
+
+% Title
+\title{Privacy-Preserving Computing with Non-Interactive Universal Computation\\\large Cryptographic Enforcement Against Indirect Prompt Injection}
+\author{PCC-NIUC Team}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% Abstract is extracted from PAPER.md if present; otherwise left empty
+\input{abstract.tex}
+
+% Main content converted from PAPER.md
+\input{content_simple.tex}
+
+% Simple bibliography section
+\section*{References}
+\begin{enumerate}
+\item OWASP Foundation. OWASP AI Security and Privacy Guide. 2024.
+\item NIST. Artificial Intelligence Risk Management Framework (AI RMF 1.0). NIST AI 100-1, January 2023.
+\item Necula, G.C. and Lee, P. Safe kernel extensions without run-time checking. ACM SIGOPS Operating Systems Review, 1996.
+\item Microsoft. AI Security Risk Assessment Framework. 2024.
+\item Meta AI Research. Llama Guard: LLM-based Input-Output Safeguard. 2024.
+\item Anthropic. Constitutional AI: Harmlessness from AI Feedback. 2024.
+\item Zou, A. et al. Universal and Transferable Adversarial Attacks on Aligned Language Models. 2023.
+\item [Additional references - add as needed]
+\end{enumerate}
+
+\end{document}
+
+

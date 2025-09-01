@@ -1,0 +1,73 @@
+% !TeX program = xelatex
+% !BIB program = biber
+% PCC-NIUC Overleaf-ready manuscript
+\documentclass[11pt]{article}
+
+% Engine-conditional font setup
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+\else
+  \usepackage{fontspec}
+  % Use a Unicode font with broad coverage (Overleaf has Noto Serif)
+  \setmainfont{Noto Serif}
+\fi
+
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{xcolor}
+
+% Bibliography (biblatex + biber)
+\usepackage[backend=biber,style=ieee,maxbibnames=6,sorting=nyt]{biblatex}
+\addbibresource{refs.bib}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+
+% Hyperref setup
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdfauthor={PCC-NIUC Team},
+  pdftitle={Privacy-Preserving Computing with Non-Interactive Universal Computation}
+}
+
+% Title
+\title{Privacy-Preserving Computing with Non-Interactive Universal Computation\\\large Cryptographic Enforcement Against Indirect Prompt Injection}
+\author{PCC-NIUC Team}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% Abstract is extracted from PAPER.md if present; otherwise left empty
+\input{abstract.tex}
+
+% Main content converted from PAPER.md
+\input{content.tex}
+
+\printbibliography
+
+\end{document}
+
+

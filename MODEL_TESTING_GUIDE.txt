@@ -1,0 +1,151 @@
+# NIUC Model Testing Strategy
+# ================================
+
+## PHASE 1: PROOF OF CONCEPT (Start Here)
+**Model:** Mock Model
+**Purpose:** Verify NIUC system works correctly
+**Time:** 15-20 minutes
+**Cost:** Free
+
+Commands:
+python demo/demo_cli.py --model mock
+# Test all scenarios in NIUC_TEST_SCENARIOS.txt
+
+Expected Results:
+✅ 0.0% False Positive Rate (rewrite mode)
+✅ Sub-millisecond processing
+✅ Consistent certificate generation
+✅ Perfect attack neutralization
+
+---
+
+## PHASE 2: PRODUCTION VALIDATION (For Serious Demo)
+**Model:** GPT-3.5-Turbo 
+**Purpose:** Show real LLM integration
+**Time:** 30 minutes
+**Cost:** ~$1-3 for full test suite
+
+Setup:
+1. Get OpenAI API key: https://platform.openai.com/api-keys
+2. Set environment variable:
+   Windows: $env:OPENAI_API_KEY="your_key_here"  
+   Linux/Mac: export OPENAI_API_KEY="your_key_here"
+
+Commands:
+python demo/demo_cli.py --model api --model-name gpt-3.5-turbo
+
+Test Priority:
+1. Unicode homoglyph attacks (Test 2.1)
+2. Code fence injection (Test 3.1)  
+3. Polite request frames (Test 4.1)
+4. Mixed trust scenarios (Test 7.1)
+
+---
+
+## PHASE 3: FLAGSHIP DEMONSTRATION (For Publication/Presentation)
+**Model:** GPT-4
+**Purpose:** Maximum credibility and sophistication  
+**Time:** 45 minutes
+**Cost:** ~$5-10 for comprehensive testing
+
+Commands:
+python demo/demo_cli.py --model api --model-name gpt-4
+
+Focus Areas:
+- Complex multi-turn attacks
+- Sophisticated linguistic evasion
+- Real-world document analysis scenarios
+- Full Hydra-Bench-500 evaluation
+
+---
+
+## PHASE 4: BATCH EVALUATION (For Research Metrics)
+**Model:** GPT-3.5-Turbo (cost-effective) or Mock (free)
+**Purpose:** Generate comprehensive benchmark results
+**Time:** 10 minutes
+**Cost:** ~$2-5 (API) or Free (Mock)
+
+Commands:
+python scripts/run_benchmarks.py --model api --scenarios bench/scenarios.jsonl --results-dir results --timestamp research_run
+
+Output:
+- CSV with detailed metrics
+- Markdown summary report  
+- Statistical significance testing
+- Performance comparisons
+
+---
+
+## MODEL COMPARISON TABLE
+
+| Model | Setup Time | Cost/Hour | Realism | Use Case |
+|-------|------------|-----------|---------|----------|
+| **Mock** | 0 min | Free | Low | Development, debugging |
+| **GPT-3.5** | 2 min | $1-3/hr | High | Production validation |
+| **GPT-4** | 2 min | $10-15/hr | Highest | Research demos |
+| **Local 7B** | 30-60 min | Free | Medium | Privacy, offline |
+
+---
+
+## QUICK START RECOMMENDATIONS
+
+### For Academic Paper/Research:
+1. Start with Mock (verify system works)
+2. Move to GPT-3.5 (validate with real LLM) 
+3. Include GPT-4 results for flagship scenarios
+4. Run full benchmark with GPT-3.5
+
+### For Live Demo/Presentation:
+1. Use GPT-4 for maximum impact
+2. Pre-test scenarios with Mock
+3. Have fallback to Mock if API issues
+
+### For Personal Learning/Development:
+1. Stick with Mock model
+2. Focus on understanding NIUC behavior
+3. Test all attack categories thoroughly
+
+---
+
+## API KEY SETUP (Windows PowerShell)
+
+# Temporary (current session only):
+$env:OPENAI_API_KEY="sk-your_actual_key_here"
+
+# Permanent (all future sessions):
+[Environment]::SetEnvironmentVariable("OPENAI_API_KEY", "sk-your_key_here", "User")
+
+# Verify it's set:
+echo $env:OPENAI_API_KEY
+
+---
+
+## EXPECTED TESTING RESULTS BY MODEL
+
+Mock Model Results:
+- Processing: 0.1-0.3ms 
+- Responses: Predictable format
+- Perfect for isolating NIUC behavior
+
+GPT-3.5-Turbo Results:
+- Processing: 300-800ms generation + 0.2ms NIUC
+- Responses: Natural language, varied
+- Good balance of realism and cost
+
+GPT-4 Results:  
+- Processing: 1000-3000ms generation + 0.2ms NIUC
+- Responses: Sophisticated, nuanced
+- Maximum realism and credibility
+
+---
+
+## COST ESTIMATES FOR FULL TESTING
+
+Mock Model: $0 (unlimited)
+GPT-3.5-Turbo: $1-3 for complete test suite
+GPT-4: $5-10 for complete test suite  
+Local Model: $0 after setup (but requires GPU/CPU time)
+
+Note: NIUC processing costs are negligible (<0.1¢ per request)
+The cost is entirely in the LLM generation, not the security checking.
+
