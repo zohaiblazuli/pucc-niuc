@@ -12,7 +12,7 @@ However, our current evaluation focuses on English-language scenarios with speci
 
 ### Grammar Coverage Gaps
 
-Our ablation study reveals that individual grammar components have minimal impact when disabled, suggesting potential coverage gaps in our current test scenarios. While this might indicate robust neutralization performance, it could also reflect insufficient diversity in attack sophistication within I²-Bench-Lite. Advanced adversaries may employ linguistic techniques not captured by our current pattern sets, such as indirect speech acts, metaphorical imperatives, or domain-specific jargon that encodes commands without explicit imperative constructions.
+Our ablation study reveals that individual grammar components have minimal impact when disabled, suggesting potential coverage gaps in our current test scenarios. While this might indicate robust neutralization performance, it could also reflect insufficient diversity in attack sophistication within Hydra-Bench-500. Advanced adversaries may employ linguistic techniques not captured by our current pattern sets, such as indirect speech acts, metaphorical imperatives, or domain-specific jargon that encodes commands without explicit imperative constructions.
 
 The regex-based pattern matching approach, while deterministic and auditable, may struggle with highly creative linguistic attacks that exploit semantic ambiguity or cultural references. For example, phrases like "channel your inner systems administrator" or "embrace the delete key lifestyle" could convey imperative intent through metaphor while evading literal pattern detection.
 
