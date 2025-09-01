@@ -153,7 +153,7 @@ class NIUCChecker:
     
     def create_certificate(self, result: VerificationResult) -> str:
         """
-        Create a cryptographically secure certificate JSON from verification result.
+        Create an integrity verification certificate JSON from verification result.
         
         Security-Critical: This certificate provides tamper-evident proof of NIUC
         verification results. Any modification invalidates the certificate.

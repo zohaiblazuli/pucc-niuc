@@ -1,16 +1,16 @@
-# Privacy-Preserving Computing with Non-Interactive Universal Computation: Cryptographic Enforcement Against Indirect Prompt Injection
+# Deterministic Enforcement Against Indirect Prompt Injection Through Character-Level Provenance Tracking
 
 ## Abstract
 
-## Privacy-Preserving Computing with Non-Interactive Universal Computation: Cryptographic Enforcement Against Indirect Prompt Injection
+## Deterministic Enforcement Against Indirect Prompt Injection Through Character-Level Provenance Tracking
 
 Large Language Model applications face critical vulnerabilities from indirect prompt injection, where malicious imperatives in untrusted content bypass input filters to trigger unauthorized operations. Current mitigations rely on probabilistic detection rather than deterministic enforcement, creating gaps between threat identification and prevention. We introduce **Non-Interactive Universal Computing (NIUC)**, ensuring no imperative from untrusted channels reaches side-effectful operations.
 
-Our system implements: (1) a deterministic checker (272 LOC) with Unicode normalization and character-level provenance tracking, (2) a runtime gate with blocking and certified-rewrite modes, and (3) cryptographic certificates for computation integrity attestation. NIUC property enforcement follows: ∀ imperative i ∈ imperatives(I), provenance(i) ⊆ trusted_chars(C).
+Our system implements: (1) a deterministic checker (272 LOC) with Unicode normalization and character-level provenance tracking, (2) a runtime gate with blocking and certified-rewrite modes, and (3) integrity verification certificates for computation attestation. NIUC property enforcement follows: ∀ imperative i ∈ imperatives(I), provenance(i) ⊆ trusted_chars(C).
 
 We evaluate using **Hydra-Bench-500**, a comprehensive benchmark with 500 scenarios across 17 attack categories, each including benign twins for false-positive assessment. Our certified-rewrite mode achieves 0.0% False Positive Rate while neutralizing 100% of attacks through imperative annotation and re-verification, with 0.2ms latency. Block mode shows 7.9% Attack Success Rate with 7.1% FPR, demonstrating strong security performance on the expanded challenging dataset.
 
-Contributions include: (1) formal NIUC property definition, (2) production-ready deterministic implementation (≤500 LOC), (3) Hydra-Bench-500 comprehensive benchmark for reproducible evaluation with 10x scale expansion, and (4) demonstration that cryptographic enforcement can replace probabilistic detection while preserving security and utility across 17 attack categories.
+Contributions include: (1) formal NIUC property definition, (2) production-ready deterministic implementation (≤500 LOC), (3) Hydra-Bench-500 comprehensive benchmark for reproducible evaluation with 10x scale expansion, and (4) demonstration that deterministic enforcement can replace probabilistic detection while preserving security and utility across 17 attack categories.
 
 ---
 
@@ -31,17 +31,17 @@ Current research demonstrates sophisticated evasion techniques that exploit Unic
 
 Existing mitigation strategies predominantly rely on **detection-based approaches** that attempt to identify malicious content through input validation, output filtering, and behavioral monitoring. Policy classifiers, content filters, and safety guardrails operate as probabilistic systems that analyze input patterns and assign risk scores. However, these approaches suffer from fundamental limitations that create exploitable gaps in security coverage. First, detection systems operate **post-hoc**, analyzing content after it has been processed by the LLM, rather than preventing malicious inputs from reaching the model in the first place. Second, probabilistic classifiers inevitably produce false positives and false negatives, creating either usability degradation or security vulnerabilities. Third, existing systems lack **mathematical guarantees** about their security properties, making it impossible to provide formal assurance that malicious content will be consistently blocked.
 
-The detection-versus-enforcement gap becomes particularly problematic in privacy-preserving computation contexts, where multiple organizations or administrative domains must collaborate while maintaining strict trust boundaries. Traditional approaches cannot provide cryptographic proof that a computation has been verified against security policies, nor can they guarantee that approved operations maintain their security properties throughout complex processing pipelines. This limitation fundamentally undermines the trust composition necessary for distributed privacy-preserving systems.
+The detection-versus-enforcement gap becomes particularly problematic in privacy-preserving computation contexts, where multiple organizations or administrative domains must collaborate while maintaining strict trust boundaries. Traditional approaches cannot provide mathematical proof that a computation has been verified against security policies, nor can they guarantee that approved operations maintain their security properties throughout complex processing pipelines. This limitation fundamentally undermines the trust composition necessary for distributed privacy-preserving systems.
 
 Recent advances in **Proof-Carrying Code (PCC)** [@necula_lee_1996] suggest an alternative paradigm where computational units include mathematical proofs of their safety properties, enabling recipients to verify security without trusting the producer. However, existing PCC approaches have not been adapted to address the specific challenges of LLM security, particularly the need for real-time processing, Unicode attack resistance, and per-response certification of indirect prompt injection resistance.
 
 ## Our Approach
 
-We introduce **Non-Interactive Universal Computing (NIUC)**, a novel framework that replaces probabilistic detection with **deterministic enforcement** and cryptographic attestation. NIUC provides mathematical guarantees that no imperative command originating from untrusted content channels can reach side-effectful operations, regardless of evasion techniques employed. Our approach shifts the security paradigm from "detect and hope" to "verify and prove," enabling trustworthy composition of LLM applications across organizational boundaries.
+We introduce **Non-Interactive Universal Computing (NIUC)**, a novel framework that replaces probabilistic detection with **deterministic enforcement** and integrity verification. NIUC provides mathematical guarantees that no imperative command originating from untrusted content channels can reach side-effectful operations, regardless of evasion techniques employed. Our approach shifts the security paradigm from "detect and hope" to "verify and prove," enabling trustworthy composition of LLM applications across organizational boundaries.
 
-The NIUC framework enforces a fundamental security property through **character-level provenance tracking**: every character in processed input maintains attribution to its originating trust channel (trusted or untrusted), and any imperative command that overlaps with untrusted characters triggers a security violation. This approach provides resilience against Unicode-based evasion techniques while maintaining deterministic behavior essential for cryptographic verification.
+The NIUC framework enforces a fundamental security property through **character-level provenance tracking**: every character in processed input maintains attribution to its originating trust channel (trusted or untrusted), and any imperative command that overlaps with untrusted characters triggers a security violation. This approach provides resilience against Unicode-based evasion techniques while maintaining deterministic behavior essential for mathematical verification.
 
-Our implementation consists of three architectural components working in concert. A **deterministic checker** (272 lines of code) performs Unicode normalization, imperative detection, and NIUC property verification without relying on machine learning or external dependencies, ensuring auditability and reproducible behavior. A **runtime gate** provides two enforcement modes: strict blocking for high-security environments and certified-rewrite for utility preservation, where untrusted imperatives are neutralized through annotation and the resulting text is re-verified for safety. Finally, **cryptographic certificates** provide mathematical attestation that approved computations satisfy the NIUC property, enabling trust composition across system boundaries.
+Our implementation consists of three architectural components working in concert. A **deterministic checker** (272 lines of code) performs Unicode normalization, imperative detection, and NIUC property verification without relying on machine learning or external dependencies, ensuring auditability and reproducible behavior. A **runtime gate** provides two enforcement modes: strict blocking for high-security environments and certified-rewrite for utility preservation, where untrusted imperatives are neutralized through annotation and the resulting text is re-verified for safety. Finally, **integrity verification certificates** provide mathematical attestation that approved computations satisfy the NIUC property, enabling trust composition across system boundaries.
 
 To enable systematic evaluation and comparison with existing approaches, we developed **Hydra-Bench-500**, a comprehensive indirect prompt injection benchmark comprising 500 scenarios across 17 attack categories. This dataset represents a systematic 10-fold expansion from our foundational I²-Bench-Lite (52 scenarios), achieving unprecedented scale while maintaining rigorous quality standards and comprehensive attack coverage across documented real-world attack vectors.
 
@@ -49,7 +49,7 @@ To enable systematic evaluation and comparison with existing approaches, we deve
 
 Our work makes the following contributions to LLM security and privacy-preserving computation:
 
-• **Formal NIUC Framework**: We provide the first mathematical formalization of security properties for LLM applications processing mixed trusted/untrusted content, including formal specifications, threat models, and certificate schemas that enable cryptographic verification of indirect prompt injection resistance.
+• **Formal NIUC Framework**: We provide the first mathematical formalization of security properties for LLM applications processing mixed trusted/untrusted content, including formal specifications, threat models, and certificate schemas that enable mathematical verification of indirect prompt injection resistance.
 
 • **Production-Ready Implementation**: We develop a complete system comprising a deterministic ≤500 LOC checker, dual-mode runtime gate with certified-rewrite capability, and model-agnostic architecture supporting both local and API model deployments, achieving 0.0% false positive rate with 0.2ms processing latency.
 
@@ -100,7 +100,7 @@ Our work builds upon the foundational concept of **Proof-Carrying Code (PCC)** i
 
 ## Novelty and Distinguishing Features
 
-Our NIUC framework differs fundamentally from existing approaches in several key dimensions. First, we provide **per-response cryptographic certificates** that mathematically attest to the security properties of individual LLM outputs, enabling trust composition across organizational boundaries—a capability absent from existing policy classifiers. Second, our approach is **model-agnostic**, operating independently of specific LLM architectures or training procedures, unlike safety classifiers that must be retrained for different models.
+Our NIUC framework differs fundamentally from existing approaches in several key dimensions. First, we provide **per-response integrity certificates** that mathematically attest to the security properties of individual LLM outputs, enabling trust composition across organizational boundaries—a capability absent from existing policy classifiers. Second, our approach is **model-agnostic**, operating independently of specific LLM architectures or training procedures, unlike safety classifiers that must be retrained for different models.
 
 Third, NIUC provides **deterministic enforcement** rather than probabilistic detection, ensuring that the same input always produces the same security decision and enabling formal verification of system properties. Fourth, our **character-level provenance tracking** provides precision unmatched by existing systems, enabling detection of sophisticated Unicode-based evasion techniques that bypass traditional content filters.
 
@@ -192,11 +192,11 @@ The rewrite process maintains semantic preservation by replacing only the specif
 
 ## Certificate Schema and Verification
 
-Every security decision generates a cryptographic certificate that provides mathematical attestation of NIUC property compliance. The certificate schema includes five mandatory fields: checker version for reproducibility, input SHA-256 hash of normalized text, output SHA-256 hash varying by decision type, decision enumeration (pass/blocked/rewritten), and violations array containing character span positions for detected violations.
+Every security decision generates an integrity verification certificate that provides mathematical attestation of NIUC property compliance. The certificate schema includes five mandatory fields: checker version for reproducibility, input SHA-256 hash of normalized text, output SHA-256 hash varying by decision type, decision enumeration (pass/blocked/rewritten), and violations array containing character span positions for detected violations.
 
-The certificate generation process computes hashes over normalized rather than raw input text, ensuring that certificates remain valid despite Unicode evasion attempts while maintaining cryptographic integrity. For blocked decisions, the output hash always equals the SHA-256 of an empty string, providing consistent verification behavior. For rewritten decisions, the output hash covers the neutralized text that passed re-verification.
+The certificate generation process computes hashes over normalized rather than raw input text, ensuring that certificates remain valid despite Unicode evasion attempts while maintaining integrity verification. For blocked decisions, the output hash always equals the SHA-256 of an empty string, providing consistent verification behavior. For rewritten decisions, the output hash covers the neutralized text that passed re-verification.
 
-Certificate verification follows a three-step process: structural validation ensuring all required fields are present with correct formats, semantic validation checking decision/violation consistency, and cryptographic validation recomputing hashes to detect tampering. This verification process enables trust composition where downstream systems can mathematically verify that upstream processing satisfied the NIUC property.
+Certificate verification follows a three-step process: structural validation ensuring all required fields are present with correct formats, semantic validation checking decision/violation consistency, and integrity validation recomputing hashes to detect tampering. This verification process enables trust composition where downstream systems can mathematically verify that upstream processing satisfied the NIUC property.
 
 ## Benchmark Design and Evaluation Methodology
 
@@ -252,7 +252,7 @@ We evaluate system performance using four primary metrics aligned with privacy-p
 
 **Utility Delta (UtilityΔ)** quantifies performance degradation compared to unprotected baseline operation, measuring the cost of security enforcement in terms of processing time and operational overhead. **Processing Latency** measures the additional time required for NIUC verification per scenario, with our target of ≤60ms per response enabling real-time deployment in interactive applications.
 
-Additional metrics include rewrite success rate (percentage of attacks successfully neutralized), violation detection precision (character-level accuracy of imperative identification), and certificate generation overhead (cryptographic processing time). These metrics provide comprehensive assessment of both security effectiveness and operational feasibility for production deployment.
+Additional metrics include rewrite success rate (percentage of attacks successfully neutralized), violation detection precision (character-level accuracy of imperative identification), and certificate generation overhead (integrity verification processing time). These metrics provide comprehensive assessment of both security effectiveness and operational feasibility for production deployment.
 
 ---
 
@@ -434,9 +434,9 @@ The current system treats all detected imperatives equally, without considering 
 
 ### Span-Level Key-Value Masking
 
-A promising enhancement involves **span-level KV masking** where detected imperative spans are cryptographically masked during LLM processing while preserving their structural positions for post-processing verification. This approach would enable LLMs to process content containing neutralized imperatives without exposure to the original malicious text, providing additional security layers beyond annotation-based neutralization.
+A promising enhancement involves **span-level KV masking** where detected imperative spans are masked during LLM processing while preserving their structural positions for post-processing verification. This approach would enable LLMs to process content containing neutralized imperatives without exposure to the original malicious text, providing additional security layers beyond annotation-based neutralization.
 
-The KV masking approach would operate at the transformer attention mechanism level, replacing imperative token embeddings with cryptographically secure placeholder representations during inference. Post-generation verification would unmask these placeholders and validate that no new imperatives were generated through the LLM's processing of the masked content.
+The KV masking approach would operate at the transformer attention mechanism level, replacing imperative token embeddings with secure placeholder representations during inference. Post-generation verification would unmask these placeholders and validate that no new imperatives were generated through the LLM's processing of the masked content.
 
 ### Semantic Intent Analysis
 
@@ -469,13 +469,13 @@ Finally, the **concentration of trust determination** in system administrators w
 
 ## Conclusion
 
-We have presented **Non-Interactive Universal Computing (NIUC)**, the first formal framework for deterministic enforcement of indirect prompt injection resistance in Large Language Model applications. Our approach addresses the critical gap between probabilistic threat detection and mathematical security guarantees through a small, verifiable runtime system that provides cryptographic attestation of computation integrity.
+We have presented **Non-Interactive Universal Computing (NIUC)**, the first formal framework for deterministic enforcement of indirect prompt injection resistance in Large Language Model applications. Our approach addresses the critical gap between probabilistic threat detection and mathematical security guarantees through a small, verifiable runtime system that provides integrity verification of computation results.
 
 Our implementation demonstrates that effective LLM security can be achieved through a **compact, auditable codebase** (272 LOC checker) that operates deterministically without machine learning dependencies or external services. The NIUC checker enforces character-level provenance tracking and imperative isolation through Unicode-resistant normalization and pattern-based detection, providing mathematical guarantees that no untrusted imperatives reach side-effectful operations.
 
 The **Hydra-Bench-500 benchmark** we developed fills a critical gap in the research community by providing the most comprehensive standardized evaluation methodology for indirect prompt injection defenses. Our 500 scenarios across 17 attack categories, systematically paired with benign twins, enable precise measurement of both security effectiveness and utility preservation with unprecedented statistical power. This public benchmark enables reproducible comparative studies and establishes robust performance baselines for future research.
 
-Our evaluation validates the effectiveness of the NIUC approach, achieving **7.9% Attack Success Rate** in block mode while our certified-rewrite mode successfully neutralizes 100% of attacks with **0.0% False Positive Rate** across the comprehensive 500-scenario dataset. The system operates with **0.2ms processing latency**—300× faster than our research target—demonstrating that mathematical security enforcement can be achieved without performance degradation. These results confirm that cryptographic proof-carrying approaches can replace probabilistic detection systems while providing superior guarantees about security properties.
+Our evaluation validates the effectiveness of the NIUC approach, achieving **7.9% Attack Success Rate** in block mode while our certified-rewrite mode successfully neutralizes 100% of attacks with **0.0% False Positive Rate** across the comprehensive 500-scenario dataset. The system operates with **0.2ms processing latency**—300× faster than our research target—demonstrating that mathematical security enforcement can be achieved without performance degradation. These results confirm that mathematical proof-carrying approaches can replace probabilistic detection systems while providing superior guarantees about security properties.
 
 The NIUC framework enables trustworthy composition of LLM applications across organizational boundaries through per-response certificates, addressing critical requirements for privacy-preserving computation in enterprise and federated learning contexts. By providing formal mathematical guarantees rather than statistical risk assessments, NIUC opens new possibilities for deploying LLMs in security-critical applications previously considered too risky for AI integration.
 

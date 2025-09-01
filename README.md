@@ -1,12 +1,12 @@
-# PCC-NIUC: Privacy-Preserving Computing with Non-Interactive Universal Computation
+# PCC-NIUC: Deterministic Indirect Prompt Injection Defense
 
-**TL;DR**: Cryptographic enforcement against indirect prompt injection attacks in LLM applications. Deterministic 224-LOC checker provides mathematical guarantees that no untrusted imperatives reach side effects. Achieves 0.0% false positives with 0.2ms latency.
+**TL;DR**: Deterministic enforcement against indirect prompt injection attacks in LLM applications. 272-LOC checker with character-level provenance tracking provides mathematical guarantees that no untrusted imperatives reach side effects. Achieves 7.1% false positives with 0.2ms latency.
 
 ## 🚀 90-Second Overview
 
 **Problem**: LLM apps integrate untrusted content (RAG docs, tool outputs, conversation history) containing hidden malicious imperatives like "please execute rm -rf /" that bypass traditional content filters.
 
-**Solution**: NIUC (Non-Interactive Universal Computing) enforces the property that **no imperative from untrusted channels may reach tools or side effects**. Uses character-level provenance tracking to detect violations and cryptographic certificates to prove compliance.
+**Solution**: NIUC (Non-Interactive Universal Computing) enforces the property that **no imperative from untrusted channels may reach tools or side effects**. Uses character-level provenance tracking to detect violations and integrity verification to ensure compliance.
 
 **Key Results (Hydra-Bench-500)**:
 - ✅ **7.1% False Positive Rate** (production-viable precision on 500 scenarios)
@@ -58,7 +58,7 @@ cat results/metrics_demo.csv # Detailed data
 
 ## 📜 Certificate Example
 
-Every security decision generates a cryptographic certificate:
+Every security decision generates an integrity verification certificate:
 
 ```json
 {
@@ -130,9 +130,9 @@ python demo/demo_cli.py -f test.txt -m rewrite
 |------|-------------------|-------------------|---------|-----------|
 | **Baseline** (no protection) | 100% | 0% | 100.3ms | 500 |
 | **Block** (strict) | 7.9% | 7.1% | 0.2ms | 500 |
-| **Rewrite** (neutralize) | 100%* | 0.0% | 0.3ms | 500 |
+| **Rewrite** (neutralize) | 0%* | 0.0% | 0.3ms | 500 |
 
-\*100% in rewrite = successful neutralization (attacks made safe, not bypassed)
+\*0% ASR in rewrite = all attacks neutralized (made safe, not bypassed)
 
 **Hydra-Bench-500 Results**: ✅ ASR 7.9% (≤12% target), ⚠️ FPR 7.1% (challenging dataset), ✅ Latency 0.2ms (≤0.5ms target)
 
